@@ -14,7 +14,7 @@ class Phase4Seeder extends Seeder
     public function run(): void
     {
         $orderService = app(OrderService::class);
-        $admin = User::query()->where('email', 'admin@bynnastrade.com')->first();
+        $admin = User::query()->where('email', 'admin@maksinternational.com')->first();
         $gadgetHub = Shop::query()->where('code', 'SHP-1043')->first();
         $shopUser = User::query()->where('email', 'gadgethub@partner.local')->first();
 

@@ -55,9 +55,9 @@ class SiteContent
                 'description' => 'Brand, contact details and footer — shown on every public page.',
                 'groups' => [
                     'Brand' => [
-                        'site_name' => ['type' => 'text', 'label' => 'Business name', 'default' => 'Maks Trade International', 'max' => 80, 'required' => true],
+                        'site_name' => ['type' => 'text', 'label' => 'Business name', 'default' => 'Maks International', 'max' => 80, 'required' => true],
                         'logo' => ['type' => 'image', 'label' => 'Logo', 'default' => null, 'help' => 'Square PNG works best. Also used in the admin, field and shop apps.'],
-                        'meta_description' => ['type' => 'textarea', 'label' => 'Search engine description', 'default' => 'Maks Trade International — B2B wholesale distribution from import to warehouse fulfilment and shop delivery in Bangladesh.', 'max' => 300],
+                        'meta_description' => ['type' => 'textarea', 'label' => 'Search engine description', 'default' => 'Maks International — B2B wholesale distribution from import to warehouse fulfilment and shop delivery in Bangladesh.', 'max' => 300],
                         'footer_about' => ['type' => 'textarea', 'label' => 'Footer description', 'default' => 'B2B wholesale distribution for retail shops across Bangladesh — from import and warehousing to delivery and payment.', 'max' => 300],
                     ],
                     'Contact details' => [
@@ -254,7 +254,7 @@ class SiteContent
 
     public function siteName(): string
     {
-        return (string) ($this->get('general.site_name') ?: 'Maks Trade International');
+        return (string) ($this->get('general.site_name') ?: 'Maks International');
     }
 
     public function logoUrl(): string

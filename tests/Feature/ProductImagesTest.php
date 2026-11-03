@@ -18,7 +18,7 @@ class ProductImagesTest extends TestCase
     public function test_multiple_images_can_be_uploaded_on_create(): void
     {
         Storage::fake('public');
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
 
         $this->actingAs($admin)
             ->post(route('products.store'), [
@@ -50,7 +50,7 @@ class ProductImagesTest extends TestCase
     public function test_admin_can_add_remove_and_change_cover_image(): void
     {
         Storage::fake('public');
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $product = Product::query()->firstOrFail();
 
         $this->actingAs($admin)

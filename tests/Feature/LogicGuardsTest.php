@@ -47,7 +47,7 @@ class LogicGuardsTest extends TestCase
     {
         parent::setUp();
 
-        $this->super = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $this->super = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $this->salesman = User::where('email', 'karim@field.local')->firstOrFail();
         $this->shop = User::where('email', 'techzone@partner.local')->firstOrFail()->primaryShop();
         $this->shop->update(['credit_limit' => 10_000_000]);

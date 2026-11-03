@@ -17,7 +17,7 @@ class CollectionListTest extends TestCase
 
     public function test_admin_salesman_and_owner_see_money_received_by_person(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $salesman = User::where('email', 'karim@field.local')->firstOrFail();
         $shopUser = User::where('email', 'techzone@partner.local')->firstOrFail();
         $shop = Shop::query()->where('name', 'Tech Zone')->firstOrFail();

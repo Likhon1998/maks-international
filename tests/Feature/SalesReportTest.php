@@ -20,7 +20,7 @@ class SalesReportTest extends TestCase
 
     public function test_admin_sales_reports_cover_period_salesman_and_products(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $salesman = User::where('email', 'karim@field.local')->firstOrFail();
         $shop = Shop::query()->where('status', Shop::STATUS_ACTIVE)->firstOrFail();
         $fast = Product::query()->where('status', Product::STATUS_ACTIVE)->firstOrFail();

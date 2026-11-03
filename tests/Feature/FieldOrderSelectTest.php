@@ -238,7 +238,7 @@ class FieldOrderSelectTest extends TestCase
 
     public function test_admin_can_open_salesman_edit_and_assign_shops(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $karim = User::where('email', 'karim@field.local')->firstOrFail();
         $shop = Shop::query()->where('status', Shop::STATUS_ACTIVE)->firstOrFail();
 

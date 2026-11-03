@@ -19,7 +19,7 @@ class CatalogLogoTest extends TestCase
     public function test_admin_can_upload_replace_and_remove_category_and_brand_logos(): void
     {
         Storage::fake('public');
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
 
         $this->actingAs($admin)
             ->get(route('categories.index'))

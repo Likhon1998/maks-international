@@ -169,7 +169,7 @@ class FieldDayActivityTest extends TestCase
         $this->assertNotEmpty($visit->photo_path);
         Storage::disk('public')->assertExists($visit->photo_path);
 
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $this->actingAs($admin)
             ->get(route('visits.index', ['period' => 'today']))
             ->assertOk()

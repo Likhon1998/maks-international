@@ -20,7 +20,7 @@ class Phase5Seeder extends Seeder
         $inventory = app(InventoryService::class);
         $fulfilment = app(FulfilmentService::class);
         $orders = app(OrderService::class);
-        $admin = User::query()->where('email', 'admin@bynnastrade.com')->first();
+        $admin = User::query()->where('email', 'admin@maksinternational.com')->first();
 
         $dhaka = Warehouse::query()->updateOrCreate(
             ['code' => 'WH-DHK'],

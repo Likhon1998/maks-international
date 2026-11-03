@@ -46,7 +46,7 @@ class WorkflowSmokeTest extends TestCase
     {
         parent::setUp();
 
-        $this->admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $this->admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $this->salesman = User::where('email', 'karim@field.local')->firstOrFail();
         $this->shopUser = User::where('email', 'techzone@partner.local')->firstOrFail();
         $this->shop = $this->shopUser->primaryShop();

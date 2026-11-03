@@ -204,7 +204,7 @@ class FieldOrderBakiTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertEqualsWithDelta($discount + 2, (float) $order->fresh()->discount_total, 0.05);
 
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $this->actingAs($admin)
             ->post(route('orders.discount', $order), ['discount_total' => $discount + 2])
             ->assertSessionHasNoErrors();
@@ -264,7 +264,7 @@ class FieldOrderBakiTest extends TestCase
             ->assertSee('Payment after delivery', false)
             ->assertDontSee('name="amount"', false);
 
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $this->actingAs($admin)
             ->post(route('orders.approve', $order), ['credit_override' => 1])
             ->assertSessionHasNoErrors();
@@ -343,7 +343,7 @@ class FieldOrderBakiTest extends TestCase
             ->assertSee('Payment after delivery', false)
             ->assertDontSee('name="amount"', false);
 
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $owedBefore = (float) $shop->fresh()->outstanding_balance;
         $this->actingAs($admin)
             ->post(route('orders.invoice', $order))
@@ -396,7 +396,7 @@ class FieldOrderBakiTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $order = Order::query()->where('visit_id', $visit->id)->firstOrFail();
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $this->actingAs($admin)->post(route('orders.invoice', $order))->assertSessionHasNoErrors();
         $this->actingAs($admin)->post(route('orders.approve', $order), ['credit_override' => 1])->assertSessionHasNoErrors();
 

@@ -116,7 +116,7 @@ class ShopApprovalTest extends TestCase
 
     public function test_admin_can_approve_and_deactivate_shop(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $shop = Shop::query()->create([
             'code' => 'SHP-TEST2',
             'name' => 'Admin Pending Shop',

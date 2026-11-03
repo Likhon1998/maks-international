@@ -19,7 +19,7 @@ class Phase7Seeder extends Seeder
         $invoices = app(InvoiceService::class);
         $payments = app(PaymentService::class);
         $returns = app(ReturnService::class);
-        $admin = User::query()->where('email', 'admin@bynnastrade.com')->first();
+        $admin = User::query()->where('email', 'admin@maksinternational.com')->first();
 
         // Ensure delivered orders have invoices (Phase 5 deliver auto-creates; backfill if missing).
         Order::query()

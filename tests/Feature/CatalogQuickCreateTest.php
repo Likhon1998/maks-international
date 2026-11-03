@@ -16,7 +16,7 @@ class CatalogQuickCreateTest extends TestCase
 
     public function test_product_form_exposes_quick_add_options(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
 
         $this->actingAs($admin)
             ->get(route('products.create'))
@@ -29,7 +29,7 @@ class CatalogQuickCreateTest extends TestCase
 
     public function test_json_create_category_and_brand_persists(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
 
         $this->actingAs($admin)
             ->postJson(route('categories.store'), ['name' => 'Quick Cat'])
@@ -54,7 +54,7 @@ class CatalogQuickCreateTest extends TestCase
 
     public function test_admin_can_edit_and_delete_unused_category_and_brand(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $category = Category::query()->create(['name' => 'Edit Me', 'slug' => 'edit-me', 'is_active' => true]);
         $brand = Brand::query()->create(['name' => 'Edit Brand', 'slug' => 'edit-brand', 'is_active' => true]);
 
@@ -77,7 +77,7 @@ class CatalogQuickCreateTest extends TestCase
 
     public function test_soft_deleted_category_and_brand_can_be_recreated(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $category = Category::query()->create(['name' => 'Revived Cat', 'slug' => 'revived-cat', 'is_active' => true]);
         $brand = Brand::query()->create(['name' => 'Revived Brand', 'slug' => 'revived-brand', 'is_active' => true]);
         $category->delete();

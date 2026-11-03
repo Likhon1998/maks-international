@@ -8,7 +8,7 @@ Use this after Phase 10 to confirm the full platform works. Check each box only 
 | Portal | URL | Login |
 |--------|-----|--------|
 | Public site | `/` | — |
-| Admin | `/admin/login` | `admin@bynnastrade.com` / `12345678` |
+| Admin | `/admin/login` | `admin@maksinternational.com` / `12345678` |
 | Shop portal | `/portal/login` | `techzone@partner.local` or `gadgethub@partner.local` / `12345678` |
 | Field | `/field/login` | `karim@field.local` or `sabrina@field.local` / `12345678` |
 

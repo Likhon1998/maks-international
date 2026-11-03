@@ -50,7 +50,7 @@ class PublicCatalogTest extends TestCase
 
     public function test_admin_can_change_the_maks_gadget_order_url(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $values = collect(app(SiteContent::class)->section('general'))
             ->reject(fn ($value, $key) => SiteContent::fields('general')[$key]['type'] === 'image')
             ->map(fn ($value) => is_bool($value) ? (int) $value : $value)

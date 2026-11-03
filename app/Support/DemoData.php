@@ -143,7 +143,7 @@ class DemoData
     public static function users(): array
     {
         return [
-            ['name' => 'Super Admin', 'email' => 'admin@bynnastrade.com', 'role' => 'Super Admin', 'scope' => 'All warehouses', 'status' => 'Active'],
+            ['name' => 'Super Admin', 'email' => 'admin@maksinternational.com', 'role' => 'Super Admin', 'scope' => 'All warehouses', 'status' => 'Active'],
             ['name' => 'Warehouse Manager', 'email' => 'warehouse@bynnas.trade', 'role' => 'Warehouse', 'scope' => 'Dhaka Central', 'status' => 'Active'],
             ['name' => 'Karim Uddin', 'email' => 'karim@bynnas.trade', 'role' => 'Salesman', 'scope' => 'Dhaka North', 'status' => 'Active'],
             ['name' => 'Rafiq Hasan', 'email' => 'techzone@partner.local', 'role' => 'Shop Owner', 'scope' => 'Tech Zone', 'status' => 'Active'],

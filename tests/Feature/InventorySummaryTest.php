@@ -17,7 +17,7 @@ class InventorySummaryTest extends TestCase
 
     public function test_inventory_shows_value_product_counts_and_images(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $warehouseId = Warehouse::defaultWarehouse()?->id;
         $stock = WarehouseStock::query()
             ->with('product.category')

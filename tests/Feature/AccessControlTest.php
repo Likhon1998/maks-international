@@ -115,7 +115,7 @@ class AccessControlTest extends TestCase
     {
         $shopUser = User::where('email', 'techzone@partner.local')->firstOrFail();
         $salesman = User::where('email', 'karim@field.local')->firstOrFail();
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
 
         foreach ([$shopUser, $salesman] as $user) {
             $this->actingAs($user)->get('/admin/dashboard')->assertRedirect(route('login'));
@@ -146,7 +146,7 @@ class AccessControlTest extends TestCase
             ->assertSessionHas('portal_hint.url', route('portal.login', ['email' => 'techzone@partner.local']));
 
         $this->from(route('portal.login'))
-            ->post(route('portal.login.submit'), ['email' => 'admin@bynnastrade.com', 'password' => '12345678'])
+            ->post(route('portal.login.submit'), ['email' => 'admin@maksinternational.com', 'password' => '12345678'])
             ->assertSessionHas('portal_hint.label', 'Admin portal');
         $this->assertGuest();
     }
@@ -191,11 +191,11 @@ class AccessControlTest extends TestCase
     public function test_login_is_rate_limited(): void
     {
         foreach (range(1, 5) as $i) {
-            $this->post(route('login.submit'), ['email' => 'admin@bynnastrade.com', 'password' => 'wrong-'.$i])
+            $this->post(route('login.submit'), ['email' => 'admin@maksinternational.com', 'password' => 'wrong-'.$i])
                 ->assertSessionHasErrors(['email' => 'These credentials do not match our records.']);
         }
 
-        $this->post(route('login.submit'), ['email' => 'admin@bynnastrade.com', 'password' => '12345678'])
+        $this->post(route('login.submit'), ['email' => 'admin@maksinternational.com', 'password' => '12345678'])
             ->assertSessionHasErrors(['email' => 'Too many login attempts. Please wait a minute and try again.']);
         $this->assertGuest();
     }

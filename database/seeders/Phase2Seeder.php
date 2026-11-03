@@ -18,7 +18,7 @@ class Phase2Seeder extends Seeder
 {
     public function run(): void
     {
-        $admin = User::query()->where('email', 'admin@bynnastrade.com')->first();
+        $admin = User::query()->where('email', 'admin@maksinternational.com')->first();
 
         $territories = collect([
             ['name' => 'Dhaka North', 'code' => 'DHK-N'],

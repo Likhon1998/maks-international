@@ -15,7 +15,7 @@ class RbacSeeder extends Seeder
         $rbac->ensureSystemRoles();
 
         $admin = User::query()->updateOrCreate(
-            ['email' => 'admin@bynnastrade.com'],
+            ['email' => 'admin@maksinternational.com'],
             [
                 'name' => 'Super Admin',
                 'phone' => '01700000000',

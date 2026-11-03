@@ -18,7 +18,7 @@ class Phase6Seeder extends Seeder
     {
         $purchases = app(PurchaseService::class);
         $shipments = app(ShipmentService::class);
-        $admin = User::query()->where('email', 'admin@bynnastrade.com')->first();
+        $admin = User::query()->where('email', 'admin@maksinternational.com')->first();
         $warehouse = Warehouse::defaultWarehouse();
 
         $supplier = Supplier::query()->updateOrCreate(

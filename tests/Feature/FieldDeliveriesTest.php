@@ -77,7 +77,7 @@ class FieldDeliveriesTest extends TestCase
 
     public function test_office_marks_delivery_failed_then_retries(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $shop = Shop::query()->where('status', Shop::STATUS_ACTIVE)->firstOrFail();
         $warehouse = Warehouse::query()->firstOrFail();
 

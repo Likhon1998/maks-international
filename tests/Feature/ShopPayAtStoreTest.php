@@ -62,7 +62,7 @@ class ShopPayAtStoreTest extends TestCase
 
     public function test_van_collects_cash_when_goods_arrive(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $shopUser = User::where('email', 'techzone@partner.local')->firstOrFail();
         $shop = $shopUser->primaryShop();
         $owedBefore = (float) $shop->outstanding_balance;
@@ -101,7 +101,7 @@ class ShopPayAtStoreTest extends TestCase
 
     public function test_owner_pays_bill_from_portal_after_delivery(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $shopUser = User::where('email', 'techzone@partner.local')->firstOrFail();
         $shop = $shopUser->primaryShop();
         $owedBefore = (float) $shop->outstanding_balance;
@@ -147,7 +147,7 @@ class ShopPayAtStoreTest extends TestCase
 
     public function test_salesman_collects_remaining_after_delivery(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $salesman = User::where('email', 'karim@field.local')->firstOrFail();
         $shop = Shop::query()->where('status', Shop::STATUS_ACTIVE)->firstOrFail();
 
@@ -219,7 +219,7 @@ class ShopPayAtStoreTest extends TestCase
 
     public function test_salesman_can_leave_baki_after_delivery_and_collect_in_parts(): void
     {
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $salesman = User::where('email', 'karim@field.local')->firstOrFail();
         $shop = Shop::query()->where('status', Shop::STATUS_ACTIVE)->firstOrFail();
 

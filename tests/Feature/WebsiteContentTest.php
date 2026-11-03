@@ -25,7 +25,7 @@ class WebsiteContentTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->super = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $this->super = User::where('email', 'admin@maksinternational.com')->firstOrFail();
     }
 
     /** Current values of a section, as the admin form would post them. */

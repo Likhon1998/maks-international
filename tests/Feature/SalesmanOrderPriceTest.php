@@ -54,7 +54,7 @@ class SalesmanOrderPriceTest extends TestCase
         $this->assertNotNull($order->submitted_at);
         $this->assertTrue($item->wasPriceChanged());
 
-        $admin = User::where('email', 'admin@bynnastrade.com')->firstOrFail();
+        $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $this->actingAs($admin)
             ->get(route('orders.index'))
             ->assertOk()

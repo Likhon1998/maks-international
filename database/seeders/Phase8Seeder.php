@@ -20,7 +20,7 @@ class Phase8Seeder extends Seeder
     {
         app(RbacService::class)->ensureSystemRoles();
 
-        $admin = User::query()->where('email', 'admin@bynnastrade.com')->first();
+        $admin = User::query()->where('email', 'admin@maksinternational.com')->first();
         $targets = app(TargetService::class);
         $commissions = app(CommissionService::class);
 
