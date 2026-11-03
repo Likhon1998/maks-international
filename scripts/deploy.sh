@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Deploy / update Bynnas Trade on cPanel shared hosting.
-# Usage: bash ~/repositories/bynnas_Trade/scripts/deploy.sh
+# Deploy / update Maks International on cPanel shared hosting.
+# Usage: bash ~/repositories/maks-international/scripts/deploy.sh
 set -euo pipefail
 
-APP_DIR="$HOME/repositories/bynnas_Trade"
-DOC_ROOT="$HOME/trade.bynnas.com"
-APP_URL="https://trade.bynnas.com"
-DB_NAME="bynnsuou_trade"
-DB_USER="bynnsuou_trade"
+APP_DIR="$HOME/repositories/maks-international"
+DOC_ROOT="$HOME/trade.maksgadget.com"
+APP_URL="https://trade.maksgadget.com"
+DB_NAME="maksxkbj_maks-international"
+DB_USER="maksxkbj_maks-international"
 BRANCH="main"
 
 step() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
@@ -61,7 +61,7 @@ if [ ! -f .env ]; then
   read -rsp "MySQL password for user $DB_USER: " DB_PASS; echo
   case "$DB_PASS" in *"'"*) fail "Password contains a single quote ('); change it in cPanel and re-run." ;; esac
   cat > .env <<EOF
-APP_NAME="Bynnas Trade"
+APP_NAME="Maks International"
 APP_ENV=production
 APP_KEY=
 APP_DEBUG=false
@@ -99,10 +99,14 @@ QUEUE_CONNECTION=database
 CACHE_STORE=database
 
 MAIL_MAILER=log
-MAIL_FROM_ADDRESS="hello@bynnas.com"
+MAIL_FROM_ADDRESS="hello@maksgadget.com"
 MAIL_FROM_NAME="\${APP_NAME}"
 
 VITE_APP_NAME="\${APP_NAME}"
+
+WHATSAPP_DRIVER=log
+WHATSAPP_FROM_NAME="Maks International"
+WHATSAPP_DEFAULT_COUNTRY=880
 EOF
   chmod 600 .env
   echo ".env created."
@@ -142,7 +146,7 @@ else
     mv "$DOC_ROOT" "$BAK"
     echo "Old document root moved to $BAK"
     if [ -f "$BAK/.htaccess" ] && grep -q "cPanel-generated handler" "$BAK/.htaccess"; then
-      warn "Old .htaccess had a MultiPHP handler. Re-select PHP 8.2+ for trade.bynnas.com in MultiPHP Manager."
+      warn "Old .htaccess had a MultiPHP handler. Re-select PHP 8.2+ for trade.maksgadget.com in MultiPHP Manager."
     fi
   fi
   ln -s "$APP_DIR/public" "$DOC_ROOT"
@@ -166,3 +170,5 @@ if [ "$code" != "200" ] && [ "$code" != "302" ]; then
 fi
 
 printf '\n\033[1;32mDeploy finished.\033[0m\n'
+printf 'Admin login: https://trade.maksgadget.com/admin/login\n'
+printf 'Email: admin@maksinternational.com  |  Password: 12345678\n'
