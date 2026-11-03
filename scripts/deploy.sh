@@ -41,22 +41,13 @@ echo "All required extensions present."
 step "Pulling latest code ($BRANCH)"
 git pull --ff-only origin "$BRANCH"
 
-step "Installing Composer (if needed)"
-COMPOSER="$HOME/bin/composer"
-if [ ! -f "$COMPOSER" ]; then
-  mkdir -p "$HOME/bin"
-  curl -sS https://getcomposer.org/installer | "$PHP" -- --install-dir="$HOME/bin" --filename=composer
-fi
-"${PHPX[@]}" "$COMPOSER" --version
-
-step "Installing PHP dependencies"
-COMPOSER_MEMORY_LIMIT=-1 "${PHPX[@]}" "$COMPOSER" install --no-dev --optimize-autoloader --no-interaction --prefer-dist
-
 step "Preparing storage directories"
 mkdir -p storage/app/public storage/framework/{cache/data,sessions,views,testing} storage/logs bootstrap/cache
 chmod -R 775 storage bootstrap/cache
 
 step "Configuring .env"
+# Must exist before composer install — artisan package:discover boots the app and
+# Laravel defaults to sqlite when DB_CONNECTION is missing.
 if [ ! -f .env ]; then
   read -rsp "MySQL password for user $DB_USER: " DB_PASS; echo
   case "$DB_PASS" in *"'"*) fail "Password contains a single quote ('); change it in cPanel and re-run." ;; esac
@@ -113,6 +104,18 @@ EOF
 else
   echo ".env already exists, keeping it."
 fi
+
+step "Installing Composer (if needed)"
+COMPOSER="$HOME/bin/composer"
+if [ ! -f "$COMPOSER" ]; then
+  mkdir -p "$HOME/bin"
+  curl -sS https://getcomposer.org/installer | "$PHP" -- --install-dir="$HOME/bin" --filename=composer
+fi
+"${PHPX[@]}" "$COMPOSER" --version
+
+step "Installing PHP dependencies"
+COMPOSER_MEMORY_LIMIT=-1 "${PHPX[@]}" "$COMPOSER" install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
 grep -q '^APP_KEY=base64:' .env || "${PHPX[@]}" artisan key:generate --force
 
 step "Clearing stale caches"
