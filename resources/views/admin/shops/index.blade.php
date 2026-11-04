@@ -50,15 +50,15 @@
                         <tr>
                             <th>Shop ID</th>
                             <th>Shop</th>
-                            <th>Owner</th>
-                            <th>City</th>
-                            <th>Price group</th>
-                            <th>Salesman</th>
+                            <th class="col-hide-md">Owner</th>
+                            <th class="col-hide-lg">City</th>
+                            <th class="col-hide-lg">Price group</th>
+                            <th class="col-hide-md">Salesman</th>
                             <th>Credit</th>
                             <th>Baki</th>
                             <th>Status</th>
-                            <th>Login</th>
-                            <th></th>
+                            <th class="col-hide-lg">Login</th>
+                            <th class="actions"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -71,24 +71,31 @@
                                         Added by <b x-text="row.added_by"></b> · <span x-text="row.added_on"></span>
                                     </div>
                                 </td>
-                                <td x-text="row.owner || '—'"></td>
-                                <td x-text="row.city || '—'"></td>
-                                <td x-text="row.price_group"></td>
-                                <td x-text="row.salesman"></td>
+                                <td class="col-hide-md" x-text="row.owner || '—'"></td>
+                                <td class="col-hide-lg" x-text="row.city || '—'"></td>
+                                <td class="col-hide-lg" x-text="row.price_group"></td>
+                                <td class="col-hide-md" x-text="row.salesman"></td>
                                 <td x-text="row.credit"></td>
                                 <td x-text="row.outstanding"></td>
                                 <td><span class="badge" :class="row.status_badge" x-text="row.status_label"></span></td>
-                                <td>
+                                <td class="col-hide-lg">
                                     <span class="badge" :class="row.has_login ? 'badge-active' : 'badge-pending'" x-text="row.has_login ? 'Has login' : 'No login'"></span>
                                 </td>
-                                <td>
-                                    <template x-if="row.can_approve && row.approve_url">
-                                        <form :action="row.approve_url" method="post" style="display:inline">
-                                            @csrf
-                                            <button class="btn btn-primary btn-sm" type="submit">Approve</button>
-                                        </form>
-                                    </template>
-                                    <a class="link" :href="row.url" style="margin-left:6px">View</a>
+                                <td class="actions">
+                                    <div class="row-menu" x-data="{ open: false }" @keydown.escape.window="open = false">
+                                        <button type="button" class="row-menu-btn" @click="open = !open" :aria-expanded="open.toString()" aria-haspopup="menu" title="Actions">
+                                            <span aria-hidden="true">⋯</span>
+                                        </button>
+                                        <div class="row-menu-panel" role="menu" x-cloak x-show="open" @click.outside="open = false">
+                                            <a class="row-menu-item" :href="row.url" @click="open = false">View</a>
+                                            <template x-if="row.can_approve && row.approve_url">
+                                                <form :action="row.approve_url" method="post">
+                                                    @csrf
+                                                    <button class="row-menu-item" type="submit">Approve</button>
+                                                </form>
+                                            </template>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         </template>

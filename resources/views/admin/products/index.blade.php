@@ -35,11 +35,11 @@
                 <thead>
                     <tr>
                         <th>Product</th>
-                        <th>Category</th>
+                        <th class="col-hide-md">Category</th>
                         <th class="num">On hand</th>
-                        <th class="num">Available</th>
+                        <th class="num col-hide-lg">Available</th>
                         <th class="num">Wholesale</th>
-                        <th class="num">Landed</th>
+                        <th class="num col-hide-lg">Landed</th>
                         <th>Status</th>
                         <th class="actions"></th>
                     </tr>
@@ -64,15 +64,17 @@
                                     </div>
                                 </div>
                             </td>
-                            <td>{{ $product->category?->name ?: '—' }}</td>
+                            <td class="col-hide-md">{{ $product->category?->name ?: '—' }}</td>
                             <td class="num">{{ number_format($product->stock_on_hand) }}</td>
-                            <td class="num {{ $stockClass }}">{{ number_format($available) }}</td>
+                            <td class="num col-hide-lg {{ $stockClass }}">{{ number_format($available) }}</td>
                             <td class="num">{{ \App\Support\DemoData::taka($product->wholesale_price) }}</td>
-                            <td class="num">{{ \App\Support\DemoData::taka($product->landed_cost) }}</td>
+                            <td class="num col-hide-lg">{{ \App\Support\DemoData::taka($product->landed_cost) }}</td>
                             <td><x-badge :status="$product->statusLabel()" /></td>
                             <td class="actions">
                                 @can('update', $product)
-                                    <a class="btn btn-ghost" style="padding:6px 10px" href="{{ route('products.edit', $product) }}">Edit</a>
+                                    <x-row-menu>
+                                        <a class="row-menu-item" href="{{ route('products.edit', $product) }}">Edit product</a>
+                                    </x-row-menu>
                                 @endcan
                             </td>
                         </tr>

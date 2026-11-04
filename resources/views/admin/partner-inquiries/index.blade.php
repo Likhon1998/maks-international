@@ -111,31 +111,33 @@
                                 @endif
                             </div>
                             <div class="partner-row-actions">
-                                @if ($row->isPending())
-                                    <form method="post" action="{{ route('partner-inquiries.accept', $row) }}">
-                                        @csrf
-                                        <button class="btn btn-primary btn-sm" type="submit">Accept</button>
-                                    </form>
-                                    <form method="post" action="{{ route('partner-inquiries.reject', $row) }}" onsubmit="return confirm('Reject this request?')">
-                                        @csrf
-                                        <button class="btn btn-ghost btn-sm partner-btn-reject" type="submit">Reject</button>
-                                    </form>
-                                @elseif ($row->needsLogin())
-                                    <form method="post" action="{{ route('partner-inquiries.issue-login', $row) }}" onsubmit="return confirm('Create the login yourself instead of the field officer?')">
-                                        @csrf
-                                        <button class="btn btn-ghost btn-sm" type="submit">Issue login</button>
-                                    </form>
-                                @elseif ($row->isAccepted())
-                                    <form method="post" action="{{ route('partner-inquiries.send-whatsapp', $row) }}">
-                                        @csrf
-                                        <button class="btn btn-primary btn-sm" type="submit">WhatsApp</button>
-                                    </form>
-                                @else
-                                    <form method="post" action="{{ route('partner-inquiries.pending', $row) }}">
-                                        @csrf
-                                        <button class="btn btn-ghost btn-sm" type="submit">Reopen</button>
-                                    </form>
-                                @endif
+                                <x-row-menu>
+                                    @if ($row->isPending())
+                                        <form method="post" action="{{ route('partner-inquiries.accept', $row) }}">
+                                            @csrf
+                                            <button class="row-menu-item" type="submit">Accept</button>
+                                        </form>
+                                        <form method="post" action="{{ route('partner-inquiries.reject', $row) }}" onsubmit="return confirm('Reject this request?')">
+                                            @csrf
+                                            <button class="row-menu-item is-danger" type="submit">Reject</button>
+                                        </form>
+                                    @elseif ($row->needsLogin())
+                                        <form method="post" action="{{ route('partner-inquiries.issue-login', $row) }}" onsubmit="return confirm('Create the login yourself instead of the field officer?')">
+                                            @csrf
+                                            <button class="row-menu-item" type="submit">Issue login</button>
+                                        </form>
+                                    @elseif ($row->isAccepted())
+                                        <form method="post" action="{{ route('partner-inquiries.send-whatsapp', $row) }}">
+                                            @csrf
+                                            <button class="row-menu-item" type="submit">WhatsApp</button>
+                                        </form>
+                                    @else
+                                        <form method="post" action="{{ route('partner-inquiries.pending', $row) }}">
+                                            @csrf
+                                            <button class="row-menu-item" type="submit">Reopen</button>
+                                        </form>
+                                    @endif
+                                </x-row-menu>
                             </div>
                         </article>
                     @empty

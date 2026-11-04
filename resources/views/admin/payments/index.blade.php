@@ -127,18 +127,22 @@
                                 <td>{{ $payment->creator?->name ?: '—' }}</td>
                                 <td class="muted">{{ $payment->paid_at?->format('d M Y') }}</td>
                                 <td><x-badge :status="$payment->statusLabel()" /></td>
-                                <td>
+                                <td class="actions">
                                     @if ($payment->status === 'pending')
                                         @can('payments.verify')
-                                            <form method="post" action="{{ route('payments.verify', $payment) }}" style="display:inline">@csrf<button class="btn btn-ghost btn-sm" type="submit">Verify</button></form>
-                                            <details style="display:inline">
-                                                <summary class="btn btn-ghost btn-sm" style="color:#b91c1c;cursor:pointer;list-style:none">Reject</summary>
-                                                <form method="post" action="{{ route('payments.reject', $payment) }}" style="margin-top:6px">
+                                            <x-row-menu>
+                                                <form method="post" action="{{ route('payments.verify', $payment) }}">
                                                     @csrf
-                                                    <input class="input" name="rejection_reason" required placeholder="Reason" style="margin-bottom:6px">
-                                                    <button class="btn btn-ghost btn-sm" type="submit" style="color:#b91c1c">Confirm</button>
+                                                    <button class="row-menu-item" type="submit">Verify</button>
                                                 </form>
-                                            </details>
+                                                <div class="row-menu-reject" @click.stop>
+                                                    <form method="post" action="{{ route('payments.reject', $payment) }}">
+                                                        @csrf
+                                                        <input class="input" name="rejection_reason" required placeholder="Reject reason">
+                                                        <button class="row-menu-item is-danger" type="submit">Confirm reject</button>
+                                                    </form>
+                                                </div>
+                                            </x-row-menu>
                                         @endcan
                                     @elseif ($payment->verifier)
                                         <span class="muted" style="font-size:11px">by {{ $payment->verifier->name }}</span>

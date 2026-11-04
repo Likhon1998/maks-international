@@ -63,20 +63,23 @@
                                 <x-badge :status="$user->is_active ? 'Active' : 'On Hold'" />
                             </td>
                             <td class="muted">{{ $user->last_login_at?->diffForHumans() ?? 'Never' }}</td>
-                            <td style="white-space:nowrap">
-                                @can('users.edit')
-                                    <a class="btn btn-ghost" href="{{ route('users.edit', $user) }}" style="padding:6px 10px">Edit</a>
-                                @endcan
-                                @can('users.activate')
-                                    @unless ($user->isSuperAdmin())
-                                        <form action="{{ route('users.toggle-active', $user) }}" method="post" style="display:inline">
-                                            @csrf
-                                            <button class="btn btn-ghost" type="submit" style="padding:6px 10px">
-                                                {{ $user->is_active ? 'Deactivate' : 'Activate' }}
-                                            </button>
-                                        </form>
-                                    @endunless
-                                @endcan
+                            <td class="actions">
+                                <x-row-menu>
+                                    <a class="row-menu-item" href="{{ route('users.show', $user) }}">View</a>
+                                    @can('users.edit')
+                                        <a class="row-menu-item" href="{{ route('users.edit', $user) }}">Edit</a>
+                                    @endcan
+                                    @can('users.activate')
+                                        @unless ($user->isSuperAdmin())
+                                            <form action="{{ route('users.toggle-active', $user) }}" method="post">
+                                                @csrf
+                                                <button class="row-menu-item {{ $user->is_active ? 'is-danger' : '' }}" type="submit">
+                                                    {{ $user->is_active ? 'Deactivate' : 'Activate' }}
+                                                </button>
+                                            </form>
+                                        @endunless
+                                    @endcan
+                                </x-row-menu>
                             </td>
                         </tr>
                     @empty

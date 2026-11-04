@@ -45,13 +45,13 @@
                         <tr>
                             <th>Invoice</th>
                             <th>Shop</th>
-                            <th>Order</th>
-                            <th>Issued</th>
-                            <th>Due</th>
+                            <th class="col-hide-md">Order</th>
+                            <th class="col-hide-lg">Issued</th>
+                            <th class="col-hide-lg">Due</th>
                             <th>Total</th>
                             <th>Balance</th>
                             <th>Status</th>
-                            <th></th>
+                            <th class="actions"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -65,9 +65,9 @@
                                     <span x-text="row.shop"></span>
                                     <div class="muted" style="font-size:11px" x-show="row.shop_code" x-text="row.shop_code"></div>
                                 </td>
-                                <td class="muted" x-text="row.order || '—'"></td>
-                                <td class="muted" x-text="row.issued_at"></td>
-                                <td class="muted" x-text="row.due_at"></td>
+                                <td class="muted col-hide-md" x-text="row.order || '—'"></td>
+                                <td class="muted col-hide-lg" x-text="row.issued_at"></td>
+                                <td class="muted col-hide-lg" x-text="row.due_at"></td>
                                 <td style="font-weight:700" x-text="row.total"></td>
                                 <td style="font-weight:600" :style="'color:' + (row.balance_raw > 0 ? '#b91c1c' : '#15803d')" x-text="row.balance"></td>
                                 <td>
@@ -82,9 +82,16 @@
                                         x-text="row.status_label"
                                     ></span>
                                 </td>
-                                <td style="white-space:nowrap">
-                                    <a class="btn btn-ghost btn-sm" :href="row.show_url">Open</a>
-                                    <a class="btn btn-ghost btn-sm" :href="row.download_url">PDF</a>
+                                <td class="actions">
+                                    <div class="row-menu" x-data="{ open: false }" @keydown.escape.window="open = false">
+                                        <button type="button" class="row-menu-btn" @click="open = !open" :aria-expanded="open.toString()" aria-haspopup="menu" title="Actions">
+                                            <span aria-hidden="true">⋯</span>
+                                        </button>
+                                        <div class="row-menu-panel" role="menu" x-cloak x-show="open" @click.outside="open = false" @click="open = false">
+                                            <a class="row-menu-item" :href="row.show_url">Open</a>
+                                            <a class="row-menu-item" :href="row.download_url">Download PDF</a>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         </template>

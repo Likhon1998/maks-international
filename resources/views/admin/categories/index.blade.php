@@ -71,17 +71,24 @@
                                 <td class="num">{{ $category->products_count }}</td>
                                 <td><x-badge :status="$category->is_active ? 'Active' : 'On Hold'" /></td>
                                 <td class="actions">
-                                    @can('categories.edit')
-                                        <button class="btn btn-ghost btn-sm" type="button" x-show="!editing" @click="editing=true">Edit</button>
-                                    @endcan
-                                    @can('categories.delete')
-                                        <form method="post" action="{{ route('categories.destroy', $category) }}" style="display:inline"
-                                            onsubmit="return confirm('Delete this category?')">
-                                            @csrf @method('DELETE')
-                                            <button class="btn btn-ghost btn-sm" type="submit" @disabled($category->products_count > 0)
-                                                title="{{ $category->products_count > 0 ? 'Reassign products first' : 'Delete' }}">Delete</button>
-                                        </form>
-                                    @endcan
+                                    <div class="row-menu" x-show="!editing" x-data="{ open: false }" @keydown.escape.window="open = false">
+                                        <button type="button" class="row-menu-btn" @click="open = !open" :aria-expanded="open.toString()" title="Actions">
+                                            <span aria-hidden="true">⋯</span>
+                                        </button>
+                                        <div class="row-menu-panel" x-cloak x-show="open" @click.outside="open = false">
+                                            @can('categories.edit')
+                                                <button class="row-menu-item" type="button" @click="editing = true; open = false">Edit</button>
+                                            @endcan
+                                            @can('categories.delete')
+                                                <form method="post" action="{{ route('categories.destroy', $category) }}"
+                                                    onsubmit="return confirm('Delete this category?')">
+                                                    @csrf @method('DELETE')
+                                                    <button class="row-menu-item is-danger" type="submit" @disabled($category->products_count > 0)
+                                                        title="{{ $category->products_count > 0 ? 'Reassign products first' : 'Delete' }}">Delete</button>
+                                                </form>
+                                            @endcan
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         @empty

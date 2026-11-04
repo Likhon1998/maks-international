@@ -77,14 +77,14 @@
                         <tr>
                             <th>Order</th>
                             <th>Shop</th>
-                            <th>Shopkeeper</th>
-                            <th>Source</th>
-                            <th>Salesman</th>
-                            <th>Lines</th>
+                            <th class="col-hide-md">Shopkeeper</th>
+                            <th class="col-hide-lg">Source</th>
+                            <th class="col-hide-md">Salesman</th>
+                            <th class="col-hide-lg">Lines</th>
                             <th>Total</th>
-                            <th>Submitted</th>
+                            <th class="col-hide-lg">Submitted</th>
                             <th>Status</th>
-                            <th style="width:1%;white-space:nowrap">Action</th>
+                            <th class="actions"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -92,20 +92,27 @@
                             <tr :class="{ 'order-row-flash': flashId === row.id }">
                                 <td style="font-weight:700" x-text="row.number"></td>
                                 <td x-text="row.shop"></td>
-                                <td x-text="row.shopkeeper"></td>
-                                <td class="muted" x-text="row.source_label"></td>
-                                <td x-text="row.salesman"></td>
-                                <td x-text="row.item_count"></td>
+                                <td class="col-hide-md" x-text="row.shopkeeper"></td>
+                                <td class="muted col-hide-lg" x-text="row.source_label"></td>
+                                <td class="col-hide-md" x-text="row.salesman"></td>
+                                <td class="col-hide-lg" x-text="row.item_count"></td>
                                 <td style="font-weight:700">
                                     <span x-text="row.total"></span>
                                     <div class="muted" style="font-size:10px;font-weight:600" x-show="row.price_changed">Price changed</div>
                                 </td>
-                                <td class="muted" x-text="row.submitted_at"></td>
+                                <td class="muted col-hide-lg" x-text="row.submitted_at"></td>
                                 <td>
                                     <span class="badge" :class="row.status_badge" x-text="row.status_label"></span>
                                 </td>
-                                <td>
-                                    <a class="btn btn-view btn-view-sm" :href="row.show_url">View</a>
+                                <td class="actions">
+                                    <div class="row-menu" x-data="{ open: false }" @keydown.escape.window="open = false">
+                                        <button type="button" class="row-menu-btn" @click="open = !open" :aria-expanded="open.toString()" aria-haspopup="menu" title="Actions">
+                                            <span aria-hidden="true">⋯</span>
+                                        </button>
+                                        <div class="row-menu-panel" role="menu" x-cloak x-show="open" @click.outside="open = false" @click="open = false">
+                                            <a class="row-menu-item" :href="row.show_url">View order</a>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                         </template>
