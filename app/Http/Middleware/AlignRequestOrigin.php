@@ -22,10 +22,9 @@ class AlignRequestOrigin
             config(['session.domain' => null]);
         }
 
-        $secure = config('session.secure');
-        if ($secure === null || $secure === '') {
-            config(['session.secure' => $request->isSecure()]);
-        }
+        // Always match the live request. Forcing Secure cookies while SSL is
+        // broken/pending makes browsers drop the session on HTTP and triggers 419s.
+        config(['session.secure' => $request->isSecure()]);
 
         $sessionDir = storage_path('framework/sessions');
         if (! is_dir($sessionDir)) {

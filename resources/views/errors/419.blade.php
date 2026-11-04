@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Session refreshed · Bynnas Trade</title>
+    <title>Session refreshed · Maks International</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { min-height: 100vh; margin: 0; display: grid; place-items: center; font-family: Inter, system-ui, sans-serif; background: #f3f4f6; color: #111827; }

@@ -82,7 +82,8 @@ SESSION_LIFETIME=120
 SESSION_ENCRYPT=false
 SESSION_PATH=/
 SESSION_DOMAIN=
-SESSION_SECURE_COOKIE=true
+SESSION_SECURE_COOKIE=false
+SESSION_SAME_SITE=lax
 
 BROADCAST_CONNECTION=log
 FILESYSTEM_DISK=local
@@ -103,6 +104,11 @@ EOF
   echo ".env created."
 else
   echo ".env already exists, keeping it."
+  # Keep sessions working over HTTP until the subdomain SSL is Active.
+  if grep -q '^SESSION_SECURE_COOKIE=true' .env; then
+    sed -i 's/^SESSION_SECURE_COOKIE=true/SESSION_SECURE_COOKIE=false/' .env
+    echo "SESSION_SECURE_COOKIE set to false (SSL-safe)."
+  fi
 fi
 
 step "Installing Composer (if needed)"
@@ -123,10 +129,13 @@ rm -f bootstrap/cache/config.php bootstrap/cache/routes-*.php
 "${PHPX[@]}" artisan config:clear
 "${PHPX[@]}" artisan route:clear
 "${PHPX[@]}" artisan view:clear
+"${PHPX[@]}" artisan cache:clear
 
 step "Running migrations"
 "${PHPX[@]}" artisan migrate --force
-"${PHPX[@]}" artisan cache:clear
+
+step "Clearing old sessions"
+"${PHPX[@]}" artisan tinker --execute="if (Illuminate\Support\Facades\Schema::hasTable('sessions')) { Illuminate\Support\Facades\DB::table('sessions')->truncate(); echo 'sessions cleared'.PHP_EOL; }"
 
 SEED_MARKER="storage/app/.rbac_seeded"
 if [ ! -f "$SEED_MARKER" ]; then
