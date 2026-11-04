@@ -1,16 +1,6 @@
 @extends('layouts.app')
 @section('title', 'Dashboard')
 @section('content')
-    <div class="toolbar">
-        <div class="page-kicker">
-            <strong>Dashboard</strong> / Welcome back, {{ auth()->user()?->name }}
-        </div>
-        <span class="btn btn-ghost" style="pointer-events:none">
-            <i data-lucide="calendar" style="width:16px;height:16px"></i>
-            {{ now()->startOfMonth()->format('d M Y') }} – {{ now()->format('d M Y') }}
-        </span>
-    </div>
-
     @php
         $user = auth()->user();
         $showAudit = $pendingAudit > 0 && $user->can('orders.approve');
@@ -18,202 +8,263 @@
         $canAnalytics = $user->can('analytics.view');
         $canOrders = $user->can('orders.view');
         $quickActions = collect([
-            ['Add Shop', 'store', '#dbeafe', '#2563eb', 'shops.create', 'shops.create'],
-            ['Create Order', 'shopping-bag', '#f3e8ff', '#6D28D9', 'orders.create', 'orders.create'],
-            ['Add Product', 'package-plus', '#dcfce7', '#16a34a', 'products.create', 'products.create'],
-            ['Add Shipment', 'ship', '#e0f2fe', '#0284c7', 'shipments.create', 'shipments.create'],
-            ['Receive Stock', 'package-check', '#ccfbf1', '#0f766e', 'inventory.receive', 'inventory.receive'],
-            ['Generate Report', 'file-bar-chart', '#f1f5f9', '#334155', 'reports.index', 'reports.view'],
-            ['Targets', 'target', '#fef3c7', '#d97706', 'targets.index', 'targets.view'],
-            ['Analytics', 'trending-up', '#ede9fe', '#6D28D9', 'analytics.index', 'analytics.view'],
-        ])->filter(fn ($a) => $user->can($a[5]));
+            ['Add Shop', 'store', 'shops.create', 'shops.create'],
+            ['Create Order', 'shopping-bag', 'orders.create', 'orders.create'],
+            ['Add Product', 'package-plus', 'products.create', 'products.create'],
+            ['Add Shipment', 'ship', 'shipments.create', 'shipments.create'],
+            ['Receive Stock', 'package-check', 'inventory.receive', 'inventory.receive'],
+            ['Generate Report', 'file-bar-chart', 'reports.index', 'reports.view'],
+            ['Targets', 'target', 'targets.index', 'targets.view'],
+            ['Analytics', 'trending-up', 'analytics.index', 'analytics.view'],
+        ])->filter(fn ($a) => $user->can($a[3]));
         $showAnything = $canAnalytics || $canOrders || $quickActions->isNotEmpty()
             || $user->can('products.view') || $user->can('shipments.view');
+
+        $primaryStats = collect($stats)->take(4)->values();
+        $secondaryStats = collect($stats)->slice(4)->values();
+        $orderTotal = array_sum($orderStatus);
+        $pipeline = [
+            ['Pending', $orderStatus['pending_audit'], 'is-warn'],
+            ['Approved', $orderStatus['approved'], ''],
+            ['Processing', $orderStatus['processing'], ''],
+            ['Dispatched', $orderStatus['dispatched'], ''],
+            ['Delivered', $orderStatus['delivered'], 'is-ok'],
+        ];
     @endphp
 
-    @if ($showAudit || $showPayments)
-        <div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-            @if ($showAudit)
-                <a class="btn btn-primary" href="{{ route('orders.index', ['audit_queue' => 1]) }}">Audit queue ({{ $pendingAudit }})</a>
-            @endif
-            @if ($showPayments)
-                <a class="btn btn-ghost" href="{{ route('payments.index', ['status' => 'pending']) }}">Payments to verify ({{ $pendingPayments }})</a>
-            @endif
-            @can('invoices.view')
-                <span class="muted" style="font-size:13px">{{ $openInvoices }} open invoice(s)</span>
-            @endcan
-        </div>
-    @endif
+    <div class="dash">
+        <header class="dash-head">
+            <div>
+                <div class="page-kicker"><strong>Dashboard</strong></div>
+                <p class="dash-welcome">Welcome back, {{ $user?->name }}</p>
+            </div>
+            <div class="dash-head-meta">
+                <span class="dash-period">
+                    <i data-lucide="calendar"></i>
+                    {{ now()->startOfMonth()->format('d M') }} – {{ now()->format('d M Y') }}
+                </span>
+                @if ($quickActions->isNotEmpty())
+                    <div class="dash-quick">
+                        @foreach ($quickActions->take(4) as $action)
+                            <a class="dash-quick-link" href="{{ route($action[2]) }}">
+                                <i data-lucide="{{ $action[1] }}"></i>
+                                {{ $action[0] }}
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </header>
 
-    @unless ($showAnything)
-        <div class="card" style="padding:28px;text-align:center">
-            <div class="section-title" style="margin-bottom:6px">No modules assigned yet</div>
-            <div class="muted">Your account doesn't have access to any dashboard sections. Ask a Super Admin to assign you a role.</div>
-        </div>
-    @endunless
-
-    @if ($canAnalytics)
-    <div class="grid-5" style="margin-bottom:16px">
-        @foreach ($stats as $stat)
-            @php $isNewShops = ($stat['title'] ?? '') === 'New Shops (This Month)'; @endphp
-            @if ($isNewShops)
-                <a href="{{ route('shops.index') }}" class="card stat-card" style="text-decoration:none;color:inherit;display:block">
-            @else
-                <div class="card stat-card">
-            @endif
-                <div class="stat-title">{{ $stat['title'] }}</div>
-                <div class="stat-value">
-                    @if (!empty($stat['raw']))
-                        {{ number_format($stat['value']) }}
-                    @else
-                        {{ \App\Support\DemoData::taka($stat['value']) }}
+        @if ($showAudit || $showPayments)
+            <div class="dash-alert">
+                <div class="dash-alert-copy">
+                    <strong>Needs attention</strong>
+                    <span class="muted">
+                        @can('invoices.view'){{ $openInvoices }} open invoice(s)@endcan
+                    </span>
+                </div>
+                <div class="dash-alert-actions">
+                    @if ($showAudit)
+                        <a class="btn btn-primary" href="{{ route('orders.index', ['audit_queue' => 1]) }}">
+                            Audit queue · {{ $pendingAudit }}
+                        </a>
+                    @endif
+                    @if ($showPayments)
+                        <a class="btn btn-ghost" href="{{ route('payments.index', ['status' => 'pending']) }}">
+                            Payments · {{ $pendingPayments }}
+                        </a>
                     @endif
                 </div>
-                <div class="stat-delta {{ $stat['up'] ? 'up' : 'down' }}">
-                    {{ $stat['up'] ? '↑' : '↓' }} {{ $stat['delta'] }}
-                </div>
-            @if ($isNewShops)
-                </a>
-            @else
-                </div>
-            @endif
-        @endforeach
-    </div>
-    @endif
-
-    @if ($canAnalytics || $canOrders)
-    <div class="{{ $canAnalytics && $canOrders ? 'grid-2' : '' }}" style="margin-bottom:16px">
-        @if ($canAnalytics)
-        <div class="card" style="padding:18px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <div class="section-title">Sales Overview</div>
-                <span class="muted">Last 14 days</span>
             </div>
-            <canvas id="salesChart" height="120"></canvas>
-        </div>
         @endif
-        @if ($canOrders)
-        <div class="card" style="padding:18px;display:flex;gap:18px;align-items:center">
-            <div style="flex:1">
-                <div class="section-title" style="margin-bottom:12px">Order Status</div>
-                <div style="position:relative;max-width:210px;margin:0 auto">
-                    <canvas id="orderChart" height="210"></canvas>
-                    <div style="position:absolute;inset:0;display:grid;place-items:center;pointer-events:none">
-                        <div style="text-align:center">
-                            <div style="font-size:22px;font-weight:800">{{ array_sum($orderStatus) }}</div>
-                            <div class="muted">Orders</div>
+
+        @unless ($showAnything)
+            <div class="card dash-empty">
+                <div class="section-title">No modules assigned yet</div>
+                <p class="muted">Ask a Super Admin to assign you a role with dashboard access.</p>
+            </div>
+        @endunless
+
+        @if ($canAnalytics)
+            <section class="dash-kpis" aria-label="Key metrics">
+                @foreach ($primaryStats as $stat)
+                    @php $isNewShops = ($stat['title'] ?? '') === 'New Shops (This Month)'; @endphp
+                    @if ($isNewShops)
+                        <a href="{{ route('shops.index') }}" class="dash-kpi">
+                    @else
+                        <div class="dash-kpi">
+                    @endif
+                        <div class="dash-kpi-label">{{ $stat['title'] }}</div>
+                        <div class="dash-kpi-value">
+                            @if (!empty($stat['raw']))
+                                {{ number_format($stat['value']) }}
+                            @else
+                                {{ \App\Support\DemoData::taka($stat['value']) }}
+                            @endif
+                        </div>
+                        <div class="dash-kpi-meta {{ !empty($stat['up']) ? 'is-up' : 'is-down' }}">
+                            {{ $stat['delta'] }}
+                        </div>
+                    @if ($isNewShops)
+                        </a>
+                    @else
+                        </div>
+                    @endif
+                @endforeach
+            </section>
+
+            @if ($secondaryStats->isNotEmpty())
+                <section class="dash-secondary" aria-label="More metrics">
+                    @foreach ($secondaryStats as $stat)
+                        <div class="dash-secondary-item">
+                            <span class="dash-secondary-label">{{ $stat['title'] }}</span>
+                            <strong>
+                                @if (!empty($stat['raw']))
+                                    {{ number_format($stat['value']) }}
+                                @else
+                                    {{ \App\Support\DemoData::taka($stat['value']) }}
+                                @endif
+                            </strong>
+                            <span class="muted">{{ $stat['delta'] }}</span>
+                        </div>
+                    @endforeach
+                </section>
+            @endif
+        @endif
+
+        @if ($canAnalytics || $canOrders)
+            <section class="dash-main {{ $canAnalytics && $canOrders ? 'has-split' : '' }}">
+                @if ($canAnalytics)
+                    <div class="card dash-panel">
+                        <div class="dash-panel-head">
+                            <h2 class="section-title">Sales overview</h2>
+                            <span class="muted">Last 14 days</span>
+                        </div>
+                        <div class="dash-chart">
+                            <canvas id="salesChart" height="120"></canvas>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div class="legend" style="min-width:180px">
-                @foreach ([
-                    ['Pending Approval', $orderStatus['pending_audit'], '#f97316'],
-                    ['Approved', $orderStatus['approved'], '#3b82f6'],
-                    ['Processing', $orderStatus['processing'], '#8b5cf6'],
-                    ['Dispatched', $orderStatus['dispatched'], '#7dd3fc'],
-                    ['Delivered', $orderStatus['delivered'], '#22c55e'],
-                ] as $row)
-                    <div style="display:flex;justify-content:space-between;gap:12px">
-                        <span><span class="swatch" style="background:{{ $row[2] }}"></span> {{ $row[0] }}</span>
-                        <strong>{{ $row[1] }}</strong>
+                @endif
+
+                @if ($canOrders)
+                    <div class="card dash-panel dash-pipeline">
+                        <div class="dash-panel-head">
+                            <h2 class="section-title">Order pipeline</h2>
+                            <span class="dash-pipeline-total">{{ $orderTotal }}</span>
+                        </div>
+                        <ul class="dash-pipeline-list">
+                            @foreach ($pipeline as [$label, $count, $tone])
+                                <li class="{{ $tone }}">
+                                    <span>{{ $label }}</span>
+                                    <strong>{{ $count }}</strong>
+                                    <span class="dash-pipeline-bar" style="--pct: {{ $orderTotal > 0 ? round(($count / $orderTotal) * 100) : 0 }}%"></span>
+                                </li>
+                            @endforeach
+                        </ul>
                     </div>
-                @endforeach
-            </div>
-        </div>
-        @endif
-    </div>
-    @endif
-
-    @if ($quickActions->isNotEmpty())
-    <div class="card" style="padding:18px;margin-bottom:16px">
-        <div class="section-title" style="margin-bottom:12px">Quick Actions</div>
-        <div class="qa-grid">
-            @foreach ($quickActions as $action)
-                <a class="qa" href="{{ route($action[4]) }}">
-                    <span class="qa-ico" style="background:{{ $action[2] }};color:{{ $action[3] }}">
-                        <i data-lucide="{{ $action[1] }}"></i>
-                    </span>
-                    {{ $action[0] }}
-                </a>
-            @endforeach
-        </div>
-    </div>
-    @endif
-
-    <div class="grid-3">
-        @if ($canOrders)
-        <div class="card" style="padding:8px 0 0;min-width:0">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px">
-                <div class="section-title">Recent Orders</div>
-                <a href="{{ route('orders.index') }}" class="muted">View all</a>
-            </div>
-            <div class="table-wrap">
-                <table class="data">
-                    <thead>
-                        <tr>
-                            <th>Order</th>
-                            <th>Shop</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($recentOrders as $order)
-                            <tr>
-                                <td><a class="link" href="{{ route('orders.show', $order) }}">{{ $order->number }}</a></td>
-                                <td>{{ $order->shop?->name }}</td>
-                                <td style="font-weight:700">{{ \App\Support\DemoData::taka($order->total) }}</td>
-                                <td><x-badge :status="$order->statusLabel()" /></td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="4" class="muted" style="padding:16px;text-align:center">No orders yet</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                @endif
+            </section>
         @endif
 
-        @can('products.view')
-        <div class="card" style="padding:16px">
-            <div class="section-title" style="margin-bottom:12px">Top stock products</div>
-            @forelse ($topProducts as $product)
-                <div style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #f1f3f8">
-                    <div style="width:40px;height:40px;border-radius:10px;background:#f1f5f9;display:grid;place-items:center;color:#64748b">
-                        <i data-lucide="package" style="width:18px;height:18px"></i>
-                    </div>
-                    <div style="flex:1;min-width:0">
-                        <div style="font-weight:600;font-size:13px">{{ $product->name }}</div>
-                        <div class="muted">{{ $product->sku }} · {{ number_format($product->stock_on_hand) }} on hand</div>
-                    </div>
-                    <div style="font-weight:700;font-size:13px">{{ \App\Support\DemoData::taka($product->wholesale_price) }}</div>
+        @if ($quickActions->count() > 4)
+            <section class="card dash-panel dash-more-actions">
+                <div class="dash-panel-head">
+                    <h2 class="section-title">More actions</h2>
                 </div>
-            @empty
-                <div class="muted">No products</div>
-            @endforelse
-        </div>
-        @endcan
+                <div class="dash-action-row">
+                    @foreach ($quickActions->slice(4) as $action)
+                        <a class="dash-action" href="{{ route($action[2]) }}">
+                            <i data-lucide="{{ $action[1] }}"></i>
+                            {{ $action[0] }}
+                        </a>
+                    @endforeach
+                </div>
+            </section>
+        @endif
 
-        @can('shipments.view')
-        <div class="card" style="padding:16px">
-            <div class="section-title" style="margin-bottom:12px">Shipments</div>
-            @forelse ($shipments as $shipment)
-                <div style="display:flex;gap:10px;align-items:center;padding:8px 0">
-                    <div class="qa-ico" style="background:#e0f2fe;color:#0284c7;width:36px;height:36px">
-                        <i data-lucide="ship" style="width:16px;height:16px"></i>
+        <section class="dash-bottom">
+            @if ($canOrders)
+                <div class="card dash-panel dash-orders">
+                    <div class="dash-panel-head">
+                        <h2 class="section-title">Recent orders</h2>
+                        <a href="{{ route('orders.index') }}" class="dash-link">View all</a>
                     </div>
-                    <div style="flex:1">
-                        <a href="{{ route('shipments.show', $shipment) }}" style="font-weight:700;font-size:13px">{{ $shipment->number }}</a>
-                        <div class="muted">{{ $shipment->origin ?: '—' }}</div>
+                    <div class="table-wrap">
+                        <table class="data">
+                            <thead>
+                                <tr>
+                                    <th>Order</th>
+                                    <th>Shop</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($recentOrders as $order)
+                                    <tr>
+                                        <td><a class="link" href="{{ route('orders.show', $order) }}">{{ $order->number }}</a></td>
+                                        <td>{{ $order->shop?->name }}</td>
+                                        <td class="dash-amount">{{ \App\Support\DemoData::taka($order->total) }}</td>
+                                        <td><x-badge :status="$order->statusLabel()" /></td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="dash-table-empty">No orders yet</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
-                    <x-badge :status="$shipment->statusLabel()" />
                 </div>
-            @empty
-                <div class="muted">No shipments</div>
-            @endforelse
-        </div>
-        @endcan
+            @endif
+
+            <div class="dash-side">
+                @can('products.view')
+                    <div class="card dash-panel">
+                        <div class="dash-panel-head">
+                            <h2 class="section-title">Top stock</h2>
+                            <a href="{{ route('products.index') }}" class="dash-link">Catalogue</a>
+                        </div>
+                        <ul class="dash-list">
+                            @forelse ($topProducts as $product)
+                                <li>
+                                    <div>
+                                        <strong>{{ $product->name }}</strong>
+                                        <span class="muted">{{ $product->sku }} · {{ number_format($product->stock_on_hand) }} on hand</span>
+                                    </div>
+                                    <span class="dash-amount">{{ \App\Support\DemoData::taka($product->wholesale_price) }}</span>
+                                </li>
+                            @empty
+                                <li class="dash-list-empty">No products</li>
+                            @endforelse
+                        </ul>
+                    </div>
+                @endcan
+
+                @can('shipments.view')
+                    <div class="card dash-panel">
+                        <div class="dash-panel-head">
+                            <h2 class="section-title">Shipments</h2>
+                            <a href="{{ route('shipments.index') }}" class="dash-link">View all</a>
+                        </div>
+                        <ul class="dash-list">
+                            @forelse ($shipments as $shipment)
+                                <li>
+                                    <div>
+                                        <a class="link" href="{{ route('shipments.show', $shipment) }}">{{ $shipment->number }}</a>
+                                        <span class="muted">{{ $shipment->origin ?: '—' }}</span>
+                                    </div>
+                                    <x-badge :status="$shipment->statusLabel()" />
+                                </li>
+                            @empty
+                                <li class="dash-list-empty">No shipments</li>
+                            @endforelse
+                        </ul>
+                    </div>
+                @endcan
+            </div>
+        </section>
     </div>
 @endsection
 
@@ -226,41 +277,30 @@
             datasets: [{
                 label: 'Sales',
                 data: @json(collect($salesSeries)->pluck('value')),
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59,130,246,0.12)',
+                borderColor: '#334155',
+                backgroundColor: 'rgba(51,65,85,0.08)',
                 fill: true,
-                tension: 0.4,
-                pointRadius: 3,
-                pointBackgroundColor: '#3b82f6',
+                tension: 0.35,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                borderWidth: 2,
             }]
         },
         options: {
             plugins: { legend: { display: false } },
             scales: {
-                y: { ticks: { callback: v => '৳ ' + Number(v).toLocaleString('en-IN') }, grid: { color: '#eef2f7' } },
-                x: { grid: { display: false } }
+                y: {
+                    ticks: { callback: v => '৳ ' + Number(v).toLocaleString('en-IN'), color: '#6B6680', font: { size: 11 } },
+                    grid: { color: '#EEF0F5' },
+                    border: { display: false },
+                },
+                x: {
+                    ticks: { color: '#6B6680', font: { size: 11 } },
+                    grid: { display: false },
+                    border: { display: false },
+                }
             }
         }
-    });
-
-    document.getElementById('orderChart') && new Chart(document.getElementById('orderChart'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Pending Approval', 'Approved', 'Processing', 'Dispatched', 'Delivered'],
-            datasets: [{
-                data: [
-                    {{ $orderStatus['pending_audit'] }},
-                    {{ $orderStatus['approved'] }},
-                    {{ $orderStatus['processing'] }},
-                    {{ $orderStatus['dispatched'] }},
-                    {{ $orderStatus['delivered'] }}
-                ],
-                backgroundColor: ['#f97316', '#3b82f6', '#8b5cf6', '#7dd3fc', '#22c55e'],
-                borderWidth: 0,
-                cutout: '72%'
-            }]
-        },
-        options: { plugins: { legend: { display: false } } }
     });
 </script>
 @endpush
