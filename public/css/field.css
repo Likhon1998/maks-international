@@ -701,6 +701,8 @@ a.f-kpi:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -14px var(-
 .as-geo-wide { grid-column: 1 / -1; }
 .as-form .as-sec { overflow: visible; }
 
+.f-order-pick-form { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+.f-shop-combo { width: 100%; }
 .f-combo { position: relative; z-index: 2; }
 .f-combo.is-open { z-index: 80; }
 .f-combo.is-disabled { opacity: .55; pointer-events: none; }

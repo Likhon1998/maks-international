@@ -124,6 +124,11 @@ Route::prefix('field')->name('field.')->group(function () {
         Route::get('/earnings', [FieldPortalController::class, 'earnings'])->name('earnings');
         Route::get('/collections', [FieldPortalController::class, 'collections'])->name('collections');
         Route::get('/deliveries', [FieldPortalController::class, 'deliveries'])->name('deliveries');
+        Route::get('/deliveries/stock', [FieldPortalController::class, 'deliveryStock'])->name('deliveries.stock');
+        Route::get('/deliveries/{delivery}', [FieldPortalController::class, 'showDelivery'])->whereNumber('delivery')->name('deliveries.show');
+        Route::post('/deliveries/{delivery}/receive', [FieldPortalController::class, 'receiveDelivery'])->middleware('throttle:30,1')->whereNumber('delivery')->name('deliveries.receive');
+        Route::post('/deliveries/{delivery}/quantities', [FieldPortalController::class, 'updateDeliveryQuantities'])->middleware('throttle:30,1')->whereNumber('delivery')->name('deliveries.quantities');
+        Route::post('/deliveries/{delivery}/return', [FieldPortalController::class, 'returnDeliveryStock'])->middleware('throttle:30,1')->whereNumber('delivery')->name('deliveries.return');
         Route::get('/announcements', [FieldPortalController::class, 'announcements'])->name('announcements');
         Route::get('/notifications', [FieldPortalController::class, 'notifications'])->name('notifications');
         Route::post('/notifications/{id}/read', [FieldPortalController::class, 'markNotificationRead'])->name('notifications.read');

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Delivery extends Model
 {
@@ -16,13 +17,14 @@ class Delivery extends Model
     protected $fillable = [
         'number', 'order_id', 'fulfilment_id', 'warehouse_id', 'shop_id',
         'assigned_to', 'status', 'tracking_ref', 'delivery_address', 'notes',
-        'dispatched_at', 'delivered_at', 'created_by',
+        'dispatched_at', 'received_at', 'received_by', 'delivered_at', 'created_by',
     ];
 
     protected function casts(): array
     {
         return [
             'dispatched_at' => 'datetime',
+            'received_at' => 'datetime',
             'delivered_at' => 'datetime',
         ];
     }
@@ -55,6 +57,30 @@ class Delivery extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function receiver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'received_by');
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(DeliveryItem::class);
+    }
+
+    public function isFullyReceived(): bool
+    {
+        if ($this->items->isEmpty()) {
+            return false;
+        }
+
+        return $this->items->every(fn (DeliveryItem $item) => (int) $item->qty_received > 0);
+    }
+
+    public function remainingQty(): int
+    {
+        return (int) $this->items->sum(fn (DeliveryItem $item) => $item->qtyRemaining());
     }
 
     public function statusLabel(): string

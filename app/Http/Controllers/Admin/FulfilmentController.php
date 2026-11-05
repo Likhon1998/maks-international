@@ -40,11 +40,16 @@ class FulfilmentController extends Controller
         $counts = $this->stageCounts();
 
         $drivers = User::query()
-            ->where('portal', User::PORTAL_ADMIN)
             ->where('is_active', true)
-            ->whereHas('roles', fn ($q) => $q->whereIn('name', [
-                'Delivery Staff', 'Delivery Manager', 'Warehouse Staff', 'Warehouse Manager', 'Super Admin', 'Admin',
-            ]))
+            ->where(function ($q) {
+                $q->where('portal', User::PORTAL_SALESMAN)
+                    ->orWhere(function ($q2) {
+                        $q2->where('portal', User::PORTAL_ADMIN)
+                            ->whereHas('roles', fn ($r) => $r->whereIn('name', [
+                                'Delivery Staff', 'Delivery Manager', 'Warehouse Staff', 'Warehouse Manager', 'Super Admin', 'Admin',
+                            ]));
+                    });
+            })
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])
@@ -124,9 +129,11 @@ class FulfilmentController extends Controller
         abort_unless($request->user()->can('fulfilment.dispatch'), 403);
 
         $data = $request->validate([
-            'assigned_to' => ['nullable', 'exists:users,id'],
+            'assigned_to' => ['required', 'exists:users,id'],
             'tracking_ref' => ['nullable', 'string', 'max:80'],
             'notes' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'assigned_to.required' => 'Select a salesman to deliver this order.',
         ]);
 
         $delivery = $this->fulfilment->dispatch($fulfilment, $request->user(), $data);
@@ -148,6 +155,7 @@ class FulfilmentController extends Controller
         $fulfilment->loadMissing(['delivery', 'order']);
 
         $data = $request->validate([
+            'assigned_to' => ['nullable', 'exists:users,id'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'collected_now' => ['nullable', 'numeric', 'min:0'],
             'method' => ['nullable', 'in:cash,bank_transfer,cheque,mobile_banking'],
@@ -156,7 +164,26 @@ class FulfilmentController extends Controller
         $collected = round((float) ($data['collected_now'] ?? 0), 2);
         $note = $data['notes'] ?? null;
 
+        if (! $fulfilment->delivery) {
+            $order = $fulfilment->order;
+            $this->fulfilment->deliverNow(
+                $order,
+                $request->user(),
+                $note,
+                isset($data['assigned_to']) ? (int) $data['assigned_to'] : null,
+            );
+
+            return $this->actionResponse(
+                $request,
+                $fulfilment->fresh(['order.shop', 'order.items', 'warehouse', 'delivery.assignee']),
+                'Order delivered.',
+            );
+        }
+
         if ($fulfilment->delivery && $fulfilment->delivery->status !== \App\Models\Delivery::STATUS_DELIVERED) {
+            if (! empty($data['assigned_to']) && ! $fulfilment->delivery->assigned_to) {
+                $fulfilment->delivery->update(['assigned_to' => (int) $data['assigned_to']]);
+            }
             $this->fulfilment->markDelivered(
                 $fulfilment->delivery,
                 $request->user(),

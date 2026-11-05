@@ -19,6 +19,7 @@ class FulfilmentService
         private AuditLogger $auditLogger,
         private InvoiceService $invoices,
         private TargetService $targets,
+        private DeliveryStockService $deliveryStock,
     ) {}
 
     public function createForApprovedOrder(Order $order, ?Warehouse $warehouse = null, ?User $actor = null): OrderFulfilment
@@ -146,13 +147,24 @@ class FulfilmentService
                 'dispatched_at' => now(),
             ]);
 
+            $assigneeId = $deliveryData['assigned_to']
+                ?? $order->salesman_id
+                ?? $shop->assigned_salesman_id
+                ?? null;
+
+            if (! $assigneeId) {
+                throw ValidationException::withMessages([
+                    'assigned_to' => 'Assign a salesman to deliver this order.',
+                ]);
+            }
+
             $delivery = Delivery::query()->create([
                 'number' => $this->nextDeliveryNumber(),
                 'order_id' => $order->id,
                 'fulfilment_id' => $fulfilment->id,
                 'warehouse_id' => $fulfilment->warehouse_id,
                 'shop_id' => $shop->id,
-                'assigned_to' => $deliveryData['assigned_to'] ?? null,
+                'assigned_to' => $assigneeId,
                 'status' => Delivery::STATUS_OUT_FOR_DELIVERY,
                 'tracking_ref' => $deliveryData['tracking_ref'] ?? null,
                 'delivery_address' => $deliveryData['delivery_address'] ?? trim(($shop->address ?? '').', '.($shop->city ?? ''), ', '),
@@ -161,19 +173,25 @@ class FulfilmentService
                 'created_by' => $actor->id,
             ]);
 
+            $this->deliveryStock->seedItems($delivery);
+
+            if (! $order->salesman_id) {
+                $order->update(['salesman_id' => $assigneeId]);
+            }
+
             $from = $order->status;
             $order->update(['status' => Order::STATUS_DISPATCHED]);
             $this->history($order, $from, Order::STATUS_DISPATCHED, 'dispatched', $delivery->number, $actor);
 
             $this->auditLogger->log('fulfilment', 'dispatched', "Order {$order->number} dispatched as {$delivery->number}", $order, null, null, $actor);
 
-            return $delivery->fresh(['order', 'shop', 'assignee', 'fulfilment']);
+            return $delivery->fresh(['order', 'shop', 'assignee', 'fulfilment', 'items']);
         });
     }
 
-    public function deliverNow(Order $order, User $actor, ?string $notes = null): Order
+    public function deliverNow(Order $order, User $actor, ?string $notes = null, ?int $assignedTo = null): Order
     {
-        $order->load(['fulfilment', 'delivery', 'items.product', 'warehouse']);
+        $order->load(['fulfilment', 'delivery', 'items.product', 'warehouse', 'shop']);
 
         if ($order->isDelivered()) {
             return $order;
@@ -193,6 +211,9 @@ class FulfilmentService
         }
 
         $note = $notes ?: 'Marked delivered';
+        $assignee = $assignedTo
+            ?: $order->salesman_id
+            ?: $order->shop?->assigned_salesman_id;
 
         if (in_array($fulfilment->status, [OrderFulfilment::STATUS_AWAITING_PICK, OrderFulfilment::STATUS_PICKING], true)) {
             $fulfilment = $this->completePick($fulfilment, $actor, $note);
@@ -204,16 +225,39 @@ class FulfilmentService
 
         $delivery = $order->delivery;
         if ($fulfilment->status === OrderFulfilment::STATUS_PACKED) {
-            $delivery = $this->dispatch($fulfilment, $actor, ['notes' => $note]);
+            $delivery = $this->dispatch($fulfilment, $actor, [
+                'notes' => $note,
+                'assigned_to' => $assignee,
+            ]);
         } else {
             $delivery = $delivery ?: $order->fresh('delivery')->delivery;
+            if ($delivery && ! $delivery->assigned_to && $assignee) {
+                $delivery->update(['assigned_to' => $assignee]);
+            }
         }
 
         if ($delivery && $delivery->status !== Delivery::STATUS_DELIVERED) {
-            $this->markDelivered($delivery, $actor, $note, 0);
+            $this->deliveryStock->seedItems($delivery);
+            $this->deliveryStock->receive(
+                $delivery,
+                $delivery->fresh('items')->items->map(fn ($item) => [
+                    'id' => $item->id,
+                    'qty' => (int) $item->qty_ordered,
+                ])->all(),
+                $actor,
+            );
+            $this->deliveryStock->recordDeliveredQuantities(
+                $delivery->fresh('items'),
+                $delivery->fresh('items')->items->map(fn ($item) => [
+                    'id' => $item->id,
+                    'qty' => (int) $item->qty_received ?: (int) $item->qty_ordered,
+                ])->all(),
+                $actor,
+            );
+            $this->markDelivered($delivery->fresh(), $actor, $note, 0);
         }
 
-        return $order->fresh(['fulfilment', 'delivery', 'invoice']);
+        return $order->fresh(['fulfilment', 'delivery.items', 'invoice']);
     }
 
     public function markDelivered(

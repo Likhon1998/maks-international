@@ -7,6 +7,7 @@ use App\Models\Shop;
 use App\Models\Territory;
 use App\Models\User;
 use App\Models\AuditLog;
+use App\Services\DeliveryStockService;
 use App\Services\FieldActivityService;
 use App\Services\RbacService;
 use App\Services\SalesmanService;
@@ -19,6 +20,7 @@ class SalesmanController extends Controller
     public function __construct(
         private SalesmanService $salesmen,
         private FieldActivityService $activity,
+        private DeliveryStockService $deliveryStock,
         private RbacService $rbac,
     ) {}
 
@@ -88,7 +90,15 @@ class SalesmanController extends Controller
             'all' => $this->activity->summary(null, $salesman->id)->first(),
         ];
 
-        return view('admin.salesmen.show', compact('salesman', 'monthOrders', 'activity'));
+        $stock = $this->deliveryStock->salesmanBalances($salesman);
+        $assignedDeliveries = \App\Models\Delivery::query()
+            ->with(['shop', 'order'])
+            ->where('assigned_to', $salesman->id)
+            ->latest('dispatched_at')
+            ->limit(15)
+            ->get();
+
+        return view('admin.salesmen.show', compact('salesman', 'monthOrders', 'activity', 'stock', 'assignedDeliveries'));
     }
 
     public function edit(Request $request, User $salesman)

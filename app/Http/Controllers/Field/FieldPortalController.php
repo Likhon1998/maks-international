@@ -21,6 +21,7 @@ use App\Services\SalaryService;
 use App\Rules\BangladeshPhone;
 use App\Services\AppNotificationService;
 use App\Services\CollectionSummaryService;
+use App\Services\DeliveryStockService;
 use App\Services\FulfilmentService;
 use App\Services\InvoiceService;
 use App\Services\OrderService;
@@ -59,6 +60,7 @@ class FieldPortalController extends Controller
         private SalaryService $salaries,
         private PaymentService $payments,
         private FulfilmentService $fulfilment,
+        private DeliveryStockService $deliveryStock,
         private CollectionSummaryService $collections,
         private BangladeshGeoService $geo,
     ) {}
@@ -974,7 +976,8 @@ class FieldPortalController extends Controller
 
         $base = Delivery::query()
             ->where(function ($q) use ($user, $shopIds) {
-                $q->whereHas('order', fn ($o) => $o->where('salesman_id', $user->id))
+                $q->where('assigned_to', $user->id)
+                    ->orWhereHas('order', fn ($o) => $o->where('salesman_id', $user->id))
                     ->orWhereIn('shop_id', $shopIds);
             });
 
@@ -1006,6 +1009,98 @@ class FieldPortalController extends Controller
             ->withQueryString();
 
         return view('field.deliveries', compact('deliveries', 'filter', 'counts'));
+    }
+
+    public function showDelivery(Request $request, Delivery $delivery)
+    {
+        $this->assertSalesmanDelivery($request->user(), $delivery);
+        $this->deliveryStock->seedItems($delivery);
+        $delivery->load(['items.product', 'shop', 'order.items', 'assignee', 'warehouse']);
+
+        return view('field.delivery-show', [
+            'delivery' => $delivery,
+            'balances' => $this->deliveryStock->salesmanBalances($request->user()),
+        ]);
+    }
+
+    public function receiveDelivery(Request $request, Delivery $delivery)
+    {
+        $this->assertSalesmanDelivery($request->user(), $delivery);
+
+        $data = $request->validate([
+            'items' => ['required', 'array'],
+            'items.*.id' => ['required', 'integer'],
+            'items.*.qty' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $this->deliveryStock->receive($delivery, $data['items'], $request->user());
+
+        return redirect()->route('field.deliveries.show', $delivery)
+            ->with('success', 'Received quantities saved. Stock is now with you for delivery.');
+    }
+
+    public function updateDeliveryQuantities(Request $request, Delivery $delivery)
+    {
+        $this->assertSalesmanDelivery($request->user(), $delivery);
+
+        $data = $request->validate([
+            'items' => ['required', 'array'],
+            'items.*.id' => ['required', 'integer'],
+            'items.*.qty' => ['required', 'integer', 'min:0'],
+            'complete' => ['nullable', 'boolean'],
+        ]);
+
+        $this->deliveryStock->recordDeliveredQuantities(
+            $delivery,
+            $data['items'],
+            $request->user(),
+            $request->boolean('complete', true),
+        );
+
+        if ($request->boolean('complete', true) && $delivery->fresh()->status !== Delivery::STATUS_DELIVERED) {
+            $this->fulfilment->markDelivered($delivery->fresh(), $request->user(), 'Salesman confirmed delivered quantities');
+        }
+
+        return redirect()->route('field.deliveries.show', $delivery)
+            ->with('success', 'Delivered quantities saved. Remaining stock stays with you until you return it.');
+    }
+
+    public function returnDeliveryStock(Request $request, Delivery $delivery)
+    {
+        $this->assertSalesmanDelivery($request->user(), $delivery);
+
+        $data = $request->validate([
+            'items' => ['required', 'array'],
+            'items.*.id' => ['required', 'integer'],
+            'items.*.qty' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $this->deliveryStock->returnToWarehouse($delivery, $data['items'], $request->user());
+
+        return redirect()->route('field.deliveries.show', $delivery)
+            ->with('success', 'Returned stock booked back into the warehouse.');
+    }
+
+    public function deliveryStock(Request $request)
+    {
+        $balances = $this->deliveryStock->salesmanBalances($request->user());
+
+        return view('field.delivery-stock', [
+            'balances' => $balances,
+            'remainingTotal' => (int) $balances->sum('remaining'),
+            'deliveredTotal' => (int) $balances->sum('delivered'),
+            'receivedTotal' => (int) $balances->sum('received'),
+            'returnedTotal' => (int) $balances->sum('returned'),
+        ]);
+    }
+
+    private function assertSalesmanDelivery(User $user, Delivery $delivery): void
+    {
+        $allowed = (int) $delivery->assigned_to === (int) $user->id
+            || (int) $delivery->order?->salesman_id === (int) $user->id
+            || $user->assignedShops()->where('shops.id', $delivery->shop_id)->exists();
+
+        abort_unless($allowed, 403);
     }
 
     public function announcements(Request $request)

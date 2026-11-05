@@ -3,6 +3,7 @@
 @section('heading', 'Deliveries')
 @section('subheading', $counts['all'].' deliveries · '.$counts['out'].' on the way')
 @section('actions')
+    <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.deliveries.stock') }}"><i data-lucide="package"></i> Stock</a>
     <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.orders') }}"><i data-lucide="receipt-text"></i> Orders</a>
 @endsection
 @section('content')
@@ -66,7 +67,7 @@
                         @php
                             $when = $delivery->delivered_at ?? $delivery->dispatched_at;
                             $due = $delivery->order ? (float) $delivery->order->collectibleBalance() : 0;
-                            $href = $delivery->order ? route('field.orders.show', $delivery->order).($due > 0.009 ? '#collect-bill' : '') : null;
+                            $href = route('field.deliveries.show', $delivery);
                         @endphp
                         <tr @if ($href) class="is-link" onclick="window.location='{{ $href }}'" @endif>
                             <td>

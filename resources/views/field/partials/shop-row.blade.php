@@ -71,10 +71,17 @@
             @elseif ($openVisit)
                 @include('field.partials.leave-shop', [
                     'leaveVisit' => $openVisit,
-                    'leaveRedirect' => 'shops',
+                    'leaveRedirect' => ($orderMode ?? false) ? 'orders' : 'shops',
                     'leaveClass' => 'f-btn f-btn-ghost f-btn-sm',
                     'leaveLabel' => 'Leave '.$openVisit->shop?->name.' first',
                 ])
+            @elseif ($orderMode ?? false)
+                <form method="post" action="{{ route('field.shops.order', $shop) }}" data-checkin>
+                    @csrf
+                    <input type="hidden" name="latitude">
+                    <input type="hidden" name="longitude">
+                    <button class="f-btn f-btn-primary f-btn-sm" type="submit"><i data-lucide="shopping-bag"></i> Select shop</button>
+                </form>
             @elseif (! empty($shop->is_mine))
                 <form method="post" action="{{ route('field.shops.check-in', $shop) }}" data-checkin>
                     @csrf

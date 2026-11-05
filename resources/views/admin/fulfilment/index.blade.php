@@ -167,13 +167,20 @@
                                 </div>
 
                                 <div class="fw-action-card" x-show="detail.can_deliver_now">
-                                    <div class="fw-action-title">Deliver</div>
-                                    <p class="muted" style="margin:0 0 8px;font-size:12px">One step after approval. Collection stays on the order.</p>
-                                    <input class="input input-sm" x-model="notes" placeholder="Notes (optional)" :disabled="busy">
-                                    <button type="button" class="btn btn-primary btn-sm" @click="run('deliver')" :disabled="busy">
+                                    <div class="fw-action-title">Assign & deliver</div>
+                                    <p class="muted" style="margin:0 0 8px;font-size:12px">Choose the salesman who will take and deliver this order.</p>
+                                    <label class="label" style="margin-bottom:4px">Salesman</label>
+                                    <select class="select select-sm" x-model="assignedTo" :disabled="busy" style="margin-bottom:8px;width:100%">
+                                        <option value="">Select salesman…</option>
+                                        <template x-for="driver in drivers" :key="driver.id">
+                                            <option :value="String(driver.id)" x-text="driver.name"></option>
+                                        </template>
+                                    </select>
+                                    <input class="input input-sm" x-model="notes" placeholder="Notes (optional)" :disabled="busy" style="margin-bottom:8px">
+                                    <button type="button" class="btn btn-primary btn-sm" @click="run('deliver')" :disabled="busy || !assignedTo">
                                         <span class="fw-btn-inner">
                                             <span class="fw-spinner sm light" x-show="busyAction === 'deliver'"></span>
-                                            <span x-text="busyAction === 'deliver' ? 'Saving…' : 'Mark delivered'"></span>
+                                            <span x-text="busyAction === 'deliver' ? 'Saving…' : 'Assign & mark delivered'"></span>
                                         </span>
                                     </button>
                                 </div>
@@ -349,9 +356,9 @@ function fulfilmentWorkspace(cfg) {
                 if (action === 'deliver' || action === 'dispatch') body.append('notes', this.notes);
                 else body.append('warehouse_notes', this.notes);
             }
-            if (action === 'dispatch') {
+            if (action === 'dispatch' || action === 'deliver') {
                 if (this.assignedTo) body.append('assigned_to', this.assignedTo);
-                if (this.trackingRef) body.append('tracking_ref', this.trackingRef);
+                if (action === 'dispatch' && this.trackingRef) body.append('tracking_ref', this.trackingRef);
             }
 
             this.busy = true;

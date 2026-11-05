@@ -9,8 +9,8 @@
         default => 'truck',
     };
     $due = $delivery->order ? (float) $delivery->order->collectibleBalance() : 0;
-    $tag = $delivery->order ? 'a' : 'div';
-    $href = $delivery->order ? ' href="'.e(route('field.orders.show', $delivery->order).($due > 0.009 ? '#collect-bill' : '')).'"' : '';
+    $tag = 'a';
+    $href = ' href="'.e(route('field.deliveries.show', $delivery)).'"';
 @endphp
 <{{ $tag }} class="f-order"{{ $href }}>
     <div class="f-shop-ico tone-sky" style="width:40px;height:40px;flex:none">

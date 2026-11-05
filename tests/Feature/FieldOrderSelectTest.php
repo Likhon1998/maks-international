@@ -30,9 +30,9 @@ class FieldOrderSelectTest extends TestCase
         $this->actingAs($salesman)
             ->get(route('field.orders.create'))
             ->assertOk()
-            ->assertSee('Your shops and other shops', false)
+            ->assertSee('Select a shop, then add products', false)
             ->assertSee($shop->name)
-            ->assertSee('Order on behalf of shop');
+            ->assertSee('Select shop');
 
         $this->actingAs($salesman)
             ->post(route('field.shops.order', $shop))

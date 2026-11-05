@@ -39,6 +39,11 @@ class ReportService
                 'description' => 'How much each salesman sold and the profit those sales generated.',
                 'group' => 'sales',
             ],
+            'salesman-stock' => [
+                'title' => 'Salesman stock & delivery',
+                'description' => 'Per salesman: products received for delivery, delivered to shops, returned, and remaining on hand.',
+                'group' => 'operations',
+            ],
             'best-sellers' => [
                 'title' => 'Best-selling products',
                 'description' => 'Products with the highest sales volume in the selected period.',
@@ -114,6 +119,7 @@ class ReportService
             'overview' => $this->overviewReport($from, $to, $catalog[$key]),
             'total-sales' => $this->totalSalesReport($from, $to, $catalog[$key]),
             'salesmen' => $this->salesmanReport($from, $to, $catalog[$key]),
+            'salesman-stock' => $this->salesmanStockReport($catalog[$key]),
             'best-sellers' => $this->bestSellersReport($from, $to, $catalog[$key]),
             'most-profitable' => $this->mostProfitableReport($from, $to, $catalog[$key]),
             'product-sales' => $this->productSalesReport($from, $to, $catalog[$key]),
@@ -414,6 +420,48 @@ class ReportService
             $this->salesKpis($lines),
             [],
             ['text', 'number', 'number', 'money', 'money', 'money', 'percent'],
+        );
+    }
+
+    private function salesmanStockReport(array $meta): array
+    {
+        $stock = app(DeliveryStockService::class);
+        $salesmen = \App\Models\User::query()
+            ->where('portal', \App\Models\User::PORTAL_SALESMAN)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $rows = [];
+        foreach ($salesmen as $salesman) {
+            $balances = $stock->salesmanBalances($salesman);
+            if ($balances->isEmpty()) {
+                continue;
+            }
+            foreach ($balances as $line) {
+                $rows[] = [
+                    $salesman->name,
+                    $line['sku'] ?: '—',
+                    $line['name'],
+                    $line['received'],
+                    $line['delivered'],
+                    $line['returned'],
+                    $line['remaining'],
+                ];
+            }
+        }
+
+        return $this->pack(
+            $meta,
+            ['Salesman', 'SKU', 'Product', 'Received', 'Delivered', 'Returned', 'Remaining'],
+            $rows,
+            ['salesmen' => $salesmen->count(), 'lines' => count($rows)],
+            [
+                ['label' => 'Lines', 'value' => count($rows)],
+                ['label' => 'Remaining units', 'value' => collect($rows)->sum(fn ($r) => (int) $r[6])],
+            ],
+            [],
+            ['text', 'text', 'text', 'number', 'number', 'number', 'number'],
         );
     }
 

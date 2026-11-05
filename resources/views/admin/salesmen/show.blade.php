@@ -46,6 +46,53 @@
         </a>
     </div>
 
+    <div class="card" style="padding:0;margin-bottom:14px">
+        <div style="padding:14px;font-weight:700;border-bottom:1px solid #eee;display:flex;justify-content:space-between;gap:8px;align-items:center">
+            <span>Delivery stock</span>
+            <a class="link" href="{{ route('reports.show', ['report' => 'salesman-stock']) }}">Full report ›</a>
+        </div>
+        <div class="table-wrap">
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th class="num">Received</th>
+                        <th class="num">Delivered</th>
+                        <th class="num">Returned</th>
+                        <th class="num">Remaining</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($stock as $row)
+                        <tr>
+                            <td>{{ $row['name'] }} <span class="muted">{{ $row['sku'] }}</span></td>
+                            <td class="num">{{ $row['received'] }}</td>
+                            <td class="num">{{ $row['delivered'] }}</td>
+                            <td class="num">{{ $row['returned'] }}</td>
+                            <td class="num" style="font-weight:800">{{ $row['remaining'] }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="muted" style="padding:16px;text-align:center">No delivery stock recorded yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if ($assignedDeliveries->isNotEmpty())
+            <div style="padding:12px 14px;border-top:1px solid #eee">
+                <div class="muted" style="font-size:12px;margin-bottom:8px">Recent assigned deliveries</div>
+                <div style="display:grid;gap:6px">
+                    @foreach ($assignedDeliveries as $delivery)
+                        <div style="display:flex;justify-content:space-between;gap:8px;font-size:13px">
+                            <a class="link" href="{{ route('deliveries.show', $delivery) }}">{{ $delivery->number }}</a>
+                            <span>{{ $delivery->shop?->name }}</span>
+                            <span class="muted">{{ $delivery->statusLabel() }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    </div>
+
     <div class="card" style="padding:16px;margin-bottom:14px" x-data="{ copied: false }">
         <div style="font-weight:700;margin-bottom:8px">Field login</div>
         <div class="muted" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
