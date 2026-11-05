@@ -1,7 +1,9 @@
 @props(['product'])
 @php
+    $site = app(\App\Support\SiteContent::class);
     $url = $product->publicOrderUrl();
     $price = $product->publicPrice();
+    $external = $site->orderOpensExternally();
 @endphp
 <article class="site-product">
     <a class="site-product-media" href="{{ route('site.products.show', $product) }}">
@@ -21,7 +23,7 @@
             <div class="site-product-price">
                 {{ $price ? \App\Support\DemoData::taka($price) : '—' }}
             </div>
-            <a class="btn btn-primary" href="{{ $url }}" target="_blank" rel="noopener noreferrer">Order</a>
+            <a class="btn btn-primary" href="{{ $url }}" @if($external) target="_blank" rel="noopener noreferrer" @endif>Order</a>
         </div>
     </div>
 </article>

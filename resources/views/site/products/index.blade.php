@@ -1,12 +1,12 @@
 @extends('site.layouts.app')
 @section('title', 'Products')
-@section('meta', 'Browse every product from '.$site->siteName().' and order on MAKS GADGET.')
+@section('meta', 'Browse every product from '.$site->siteName().'. Apply as a partner to order wholesale.')
 @section('content')
     <section class="page-hero page-hero-compact">
         <div class="site-wrap">
             <span class="eyebrow">Catalogue</span>
             <h1>All products</h1>
-            <p class="lead">Browse the full catalogue. Click Order to buy on the official MAKS GADGET website.</p>
+            <p class="lead">Browse the full catalogue. Click Order to apply as a partner and buy wholesale.</p>
         </div>
     </section>
 

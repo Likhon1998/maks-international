@@ -90,8 +90,15 @@
                         </dl>
                     @endif
 
-                    <a class="btn btn-primary btn-lg sp-cta" href="{{ $product->publicOrderUrl() }}" target="_blank" rel="noopener noreferrer">Order on MAKS GADGET</a>
-                    <p class="muted small">You will be taken to the official MAKS GADGET website to place this order.</p>
+                    @php $orderExternal = app(\App\Support\SiteContent::class)->orderOpensExternally(); @endphp
+                    <a class="btn btn-primary btn-lg sp-cta" href="{{ $product->publicOrderUrl() }}" @if($orderExternal) target="_blank" rel="noopener noreferrer" @endif>
+                        {{ $orderExternal ? 'Order on MAKS GADGET' : 'Become a partner to order' }}
+                    </a>
+                    <p class="muted small">
+                        {{ $orderExternal
+                            ? 'You will be taken to the official MAKS GADGET website to place this order.'
+                            : 'Wholesale ordering is for approved partners. Apply once, then order from your shop portal.' }}
+                    </p>
                 </div>
             </div>
 

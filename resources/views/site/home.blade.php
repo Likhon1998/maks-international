@@ -113,7 +113,7 @@
                 <div class="section-head">
                     <span class="eyebrow">Catalogue</span>
                     <h2>All products, ready to order.</h2>
-                    <p class="lead">Every item in our catalogue is listed here. Order on the official MAKS GADGET website.</p>
+                    <p class="lead">Every item in our catalogue is listed here. Order as an approved wholesale partner.</p>
                 </div>
                 <div class="site-product-grid">
                     @foreach ($featured as $product)

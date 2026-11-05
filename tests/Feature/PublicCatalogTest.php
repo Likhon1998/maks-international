@@ -14,7 +14,7 @@ class PublicCatalogTest extends TestCase
 
     protected bool $seed = true;
 
-    public function test_visitors_see_every_product_and_order_goes_to_maks_gadget(): void
+    public function test_visitors_see_every_product_and_order_stays_on_this_site(): void
     {
         $hidden = Product::query()->create([
             'name' => 'Visitor Hidden Phone',
@@ -29,26 +29,27 @@ class PublicCatalogTest extends TestCase
             ->assertOk()
             ->assertSee('Products')
             ->assertSee('View products')
-            ->assertSee('https://makgadget.com/shop', false);
+            ->assertDontSee('https://makgadget.com/shop', false);
 
         $this->get(route('site.products'))
             ->assertOk()
             ->assertSee('All products')
             ->assertSee($hidden->name)
             ->assertSee(Product::query()->first()->name)
-            ->assertSee('https://makgadget.com/shop', false)
-            ->assertSee('Order');
+            ->assertSee(route('site.partner'), false)
+            ->assertSee('Order')
+            ->assertDontSee('https://makgadget.com/shop', false);
 
         $this->get(route('site.products.show', $hidden))
             ->assertOk()
             ->assertSee($hidden->name)
-            ->assertSee('Order on MAKS GADGET')
-            ->assertSee('https://makgadget.com/shop', false);
+            ->assertSee('Become a partner to order')
+            ->assertSee(route('site.partner'), false);
 
         $this->assertSame(Product::query()->count(), app(SiteContent::class)->catalogProducts()->count());
     }
 
-    public function test_admin_can_change_the_maks_gadget_order_url(): void
+    public function test_admin_can_set_an_optional_external_order_url(): void
     {
         $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $values = collect(app(SiteContent::class)->section('general'))
@@ -56,11 +57,9 @@ class PublicCatalogTest extends TestCase
             ->map(fn ($value) => is_bool($value) ? (int) $value : $value)
             ->all();
 
+        $values['maks_gadget_url'] = 'https://makgadget.com/';
         $this->actingAs($admin)
-            ->put(route('website.update'), $values + [
-                'section' => 'general',
-                'maks_gadget_url' => 'https://makgadget.com/',
-            ])
+            ->put(route('website.update'), $values + ['section' => 'general'])
             ->assertSessionHasNoErrors();
 
         $this->post(route('logout'));

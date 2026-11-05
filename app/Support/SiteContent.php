@@ -67,7 +67,7 @@ class SiteContent
                         'hours' => ['type' => 'text', 'label' => 'Business hours', 'default' => 'Saturday – Thursday, 10:00 – 18:00', 'max' => 120],
                         'address' => ['type' => 'text', 'label' => 'Office address', 'default' => 'Tejgaon Industrial Area, Dhaka', 'max' => 200],
                         'map_url' => ['type' => 'url', 'label' => 'Google Maps link', 'default' => '', 'max' => 500],
-                        'maks_gadget_url' => ['type' => 'url', 'label' => 'MAKS GADGET order website', 'default' => 'https://makgadget.com/shop', 'max' => 300, 'help' => 'Public “Order” buttons on the website send visitors here to place their order.'],
+                        'maks_gadget_url' => ['type' => 'url', 'label' => 'External order website (optional)', 'default' => '', 'max' => 300, 'help' => 'Leave blank so Order stays on this site (Become a partner). Only set this if you want Order to open an external shop.'],
                     ],
                     'Social links' => [
                         'facebook_url' => ['type' => 'url', 'label' => 'Facebook', 'default' => '', 'max' => 300],
@@ -308,14 +308,32 @@ class SiteContent
 
     public function maksGadgetUrl(): string
     {
-        $url = trim((string) ($this->get('general.maks_gadget_url') ?: config('services.maks_gadget.url') ?: 'https://makgadget.com/shop'));
+        $configured = trim((string) ($this->get('general.maks_gadget_url') ?: ''));
+        if ($configured !== '') {
+            return $configured;
+        }
 
-        return $url !== '' ? $url : 'https://makgadget.com/shop';
+        // Env override only when explicitly set (blank = keep Order on this site).
+        $env = trim((string) config('services.maks_gadget.url', ''));
+
+        return $env;
     }
 
     public function productOrderUrl(?Product $product = null): string
     {
-        return $this->maksGadgetUrl();
+        $external = $this->maksGadgetUrl();
+        if ($external !== '') {
+            return $external;
+        }
+
+        return route('site.partner', array_filter([
+            'product' => $product?->id,
+        ]));
+    }
+
+    public function orderOpensExternally(): bool
+    {
+        return $this->maksGadgetUrl() !== '';
     }
 
     /** Live numbers for the home page, straight from admin data. */
