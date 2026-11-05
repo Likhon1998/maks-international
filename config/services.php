@@ -29,8 +29,7 @@ return [
     ],
 
     'maks_gadget' => [
-        // Blank keeps public Order buttons on this site (Become a partner).
-        'url' => env('MAKS_GADGET_URL', ''),
+        'url' => env('MAKS_GADGET_URL', 'https://maksgadget.com'),
     ],
 
     'slack' => [

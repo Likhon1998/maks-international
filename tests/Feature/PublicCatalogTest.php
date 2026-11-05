@@ -14,7 +14,7 @@ class PublicCatalogTest extends TestCase
 
     protected bool $seed = true;
 
-    public function test_visitors_see_every_product_and_order_stays_on_this_site(): void
+    public function test_visitors_see_every_product_and_order_opens_maksgadget(): void
     {
         $hidden = Product::query()->create([
             'name' => 'Visitor Hidden Phone',
@@ -29,27 +29,28 @@ class PublicCatalogTest extends TestCase
             ->assertOk()
             ->assertSee('Products')
             ->assertSee('View products')
-            ->assertDontSee('https://makgadget.com/shop', false);
+            ->assertSee('https://maksgadget.com', false)
+            ->assertDontSee('https://makgadget.com', false);
 
         $this->get(route('site.products'))
             ->assertOk()
             ->assertSee('All products')
             ->assertSee($hidden->name)
             ->assertSee(Product::query()->first()->name)
-            ->assertSee(route('site.partner'), false)
+            ->assertSee('https://maksgadget.com', false)
             ->assertSee('Order')
-            ->assertDontSee('https://makgadget.com/shop', false);
+            ->assertDontSee('https://makgadget.com', false);
 
         $this->get(route('site.products.show', $hidden))
             ->assertOk()
             ->assertSee($hidden->name)
-            ->assertSee('Become a partner to order')
-            ->assertSee(route('site.partner'), false);
+            ->assertSee('Order on MAKS GADGET')
+            ->assertSee('https://maksgadget.com', false);
 
         $this->assertSame(Product::query()->count(), app(SiteContent::class)->catalogProducts()->count());
     }
 
-    public function test_admin_can_set_an_optional_external_order_url(): void
+    public function test_admin_can_change_the_external_order_url(): void
     {
         $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $values = collect(app(SiteContent::class)->section('general'))
@@ -57,7 +58,7 @@ class PublicCatalogTest extends TestCase
             ->map(fn ($value) => is_bool($value) ? (int) $value : $value)
             ->all();
 
-        $values['maks_gadget_url'] = 'https://makgadget.com/';
+        $values['maks_gadget_url'] = 'https://maksgadget.com/shop';
         $this->actingAs($admin)
             ->put(route('website.update'), $values + ['section' => 'general'])
             ->assertSessionHasNoErrors();
@@ -65,6 +66,6 @@ class PublicCatalogTest extends TestCase
         $this->post(route('logout'));
         $this->get(route('site.products'))
             ->assertOk()
-            ->assertSee('https://makgadget.com/', false);
+            ->assertSee('https://maksgadget.com/shop', false);
     }
 }

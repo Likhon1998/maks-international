@@ -67,7 +67,7 @@ class SiteContent
                         'hours' => ['type' => 'text', 'label' => 'Business hours', 'default' => 'Saturday – Thursday, 10:00 – 18:00', 'max' => 120],
                         'address' => ['type' => 'text', 'label' => 'Office address', 'default' => 'Tejgaon Industrial Area, Dhaka', 'max' => 200],
                         'map_url' => ['type' => 'url', 'label' => 'Google Maps link', 'default' => '', 'max' => 500],
-                        'maks_gadget_url' => ['type' => 'url', 'label' => 'External order website (optional)', 'default' => '', 'max' => 300, 'help' => 'Leave blank so Order stays on this site (Become a partner). Only set this if you want Order to open an external shop.'],
+                        'maks_gadget_url' => ['type' => 'url', 'label' => 'MAKS GADGET order website', 'default' => 'https://maksgadget.com', 'max' => 300, 'help' => 'Public “Order” buttons open this website so visitors can place their order.'],
                     ],
                     'Social links' => [
                         'facebook_url' => ['type' => 'url', 'label' => 'Facebook', 'default' => '', 'max' => 300],
@@ -313,27 +313,19 @@ class SiteContent
             return $configured;
         }
 
-        // Env override only when explicitly set (blank = keep Order on this site).
         $env = trim((string) config('services.maks_gadget.url', ''));
 
-        return $env;
+        return $env !== '' ? $env : 'https://maksgadget.com';
     }
 
     public function productOrderUrl(?Product $product = null): string
     {
-        $external = $this->maksGadgetUrl();
-        if ($external !== '') {
-            return $external;
-        }
-
-        return route('site.partner', array_filter([
-            'product' => $product?->id,
-        ]));
+        return $this->maksGadgetUrl();
     }
 
     public function orderOpensExternally(): bool
     {
-        return $this->maksGadgetUrl() !== '';
+        return true;
     }
 
     /** Live numbers for the home page, straight from admin data. */
