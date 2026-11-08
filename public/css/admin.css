@@ -1020,6 +1020,13 @@ table.data td.num {
     white-space: nowrap;
 }
 
+.shop-row-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+}
 table.data th.actions,
 table.data td.actions {
     text-align: right;
@@ -3206,7 +3213,7 @@ textarea.input {
     border: 1px solid var(--line);
     border-radius: 12px;
     box-shadow: var(--shadow);
-    overflow: hidden;
+    overflow: visible;
     min-width: 0;
 }
 .partner-panel-head {
@@ -5309,6 +5316,51 @@ a.fa-stat:hover { box-shadow: 0 10px 24px -14px rgba(46,16,101,.35); }
 .dash-empty { padding: 28px; text-align: center; }
 .dash-empty .muted { margin: 6px 0 0; }
 
+.dash-system {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+.dash-system-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.dash-system-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+.dash-system-card {
+    padding: 18px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: #fff;
+    box-shadow: var(--shadow);
+    min-width: 0;
+}
+.dash-system-card.is-sales {
+    background: linear-gradient(180deg, #f8fafc 0%, #fff 70%);
+    border-color: #dbe3ef;
+}
+.dash-system-card.is-expense {
+    background: linear-gradient(180deg, #fff7ed 0%, #fff 70%);
+    border-color: #f3e0c8;
+}
+.dash-system-card.is-profit.is-up {
+    background: linear-gradient(180deg, #f0fdf4 0%, #fff 70%);
+    border-color: #c9e9d3;
+}
+.dash-system-card.is-profit.is-down {
+    background: linear-gradient(180deg, #fef2f2 0%, #fff 70%);
+    border-color: #f0d0d0;
+}
+.dash-system-card .dash-kpi-value {
+    font-size: 26px;
+}
+
 .dash-kpis {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5503,6 +5555,7 @@ a.fa-stat:hover { box-shadow: 0 10px 24px -14px rgba(46,16,101,.35); }
 
 @media (max-width: 1100px) {
     .dash-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dash-system-grid { grid-template-columns: 1fr; }
     .dash-main.has-split,
     .dash-bottom { grid-template-columns: 1fr; }
     .dash-secondary { grid-template-columns: 1fr; }

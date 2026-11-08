@@ -330,6 +330,22 @@ class Order extends Model
         ], true);
     }
 
+    /**
+     * Field app: salesman may mark delivered only when admin assigned this drop to them.
+     */
+    public function fieldCanMarkDelivered(?User $user): bool
+    {
+        if (! $user || ! $this->canDeliver()) {
+            return false;
+        }
+
+        $delivery = $this->relationLoaded('delivery') ? $this->delivery : $this->delivery()->first();
+
+        return $delivery
+            && (int) $delivery->assigned_to === (int) $user->id
+            && $delivery->status !== Delivery::STATUS_DELIVERED;
+    }
+
     /** Salesman collects only after the goods are marked delivered. */
     public function canCollectNow(): bool
     {

@@ -11,6 +11,22 @@
         <div class="f-warn" style="margin-bottom:12px">{{ $errors->first() }}</div>
     @endif
 
+    <section class="f-panel" style="margin-bottom:12px">
+        <div class="f-panel-head"><strong>Shop details</strong></div>
+        <div style="padding:4px 0 2px">
+            <div class="strong" style="font-size:16px">{{ $delivery->shop?->name ?: '—' }}</div>
+            @if ($delivery->shop?->owner_name)
+                <div class="f-muted" style="margin-top:4px;font-size:13px">Owner: {{ $delivery->shop->owner_name }}</div>
+            @endif
+            <div style="margin-top:8px;font-size:14px">{{ $delivery->delivery_address ?: ($delivery->shop?->address ?: '—') }}</div>
+            @if ($delivery->shop?->phone)
+                <a class="f-btn f-btn-ghost f-btn-sm" style="margin-top:10px" href="tel:{{ preg_replace('/\s+/', '', $delivery->shop->phone) }}">
+                    <i data-lucide="phone"></i> {{ $delivery->shop->phone }}
+                </a>
+            @endif
+        </div>
+    </section>
+
     <div class="f-kpis" style="margin-bottom:12px">
         <div class="f-kpi tone-sky">
             <div class="f-kpi-label">Ordered</div>
@@ -64,7 +80,7 @@
     @if ($delivery->isFullyReceived())
         <section class="f-panel" style="margin-bottom:12px">
             <div class="f-panel-head"><strong>2. Delivered to shop</strong></div>
-            <p class="f-muted" style="margin:0 0 10px;font-size:13px">Enter how many units the shop actually received. Leftovers stay with you.</p>
+            <p class="f-muted" style="margin:0 0 10px;font-size:13px">Enter how many units the shop accepted. Unsold units go to <strong>Returns</strong> for admin verification — they are not added to inventory automatically.</p>
             <form method="post" action="{{ route('field.deliveries.quantities', $delivery) }}">
                 @csrf
                 <input type="hidden" name="complete" value="1">
@@ -101,8 +117,8 @@
 
         @if ($delivery->remainingQty() > 0)
             <section class="f-panel" style="margin-bottom:12px">
-                <div class="f-panel-head"><strong>3. Return leftover stock</strong></div>
-                <p class="f-muted" style="margin:0 0 10px;font-size:13px">Send remaining units back to the warehouse.</p>
+                <div class="f-panel-head"><strong>3. Submit unsold stock for return</strong></div>
+                <p class="f-muted" style="margin:0 0 10px;font-size:13px">Send remaining units to the Returns queue. Admin/manager must verify before stock is added back to inventory.</p>
                 <form method="post" action="{{ route('field.deliveries.return', $delivery) }}">
                     @csrf
                     <div class="f-table-wrap">
@@ -125,7 +141,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <button class="f-btn f-btn-ghost f-btn-block" style="margin-top:12px" type="submit">Return to warehouse</button>
+                    <button class="f-btn f-btn-ghost f-btn-block" style="margin-top:12px" type="submit">Submit to Returns</button>
                 </form>
             </section>
         @endif

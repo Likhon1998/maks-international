@@ -155,13 +155,16 @@ class PaymentService
                     ]);
                 }
                 $this->invoices->applyPayment($invoice, (float) $payment->amount);
-            }
 
-            $payment->update([
-                'status' => Payment::STATUS_VERIFIED,
-                'verified_at' => now(),
-                'verified_by' => $actor?->id,
-            ]);
+                $payment->update([
+                    'status' => Payment::STATUS_VERIFIED,
+                    'verified_at' => now(),
+                    'verified_by' => $actor?->id,
+                ]);
+            } else {
+                // Shop-level "pay due" — apply oldest open invoices first so Due and invoice balances stay in sync.
+                $payment = $this->allocateShopPaymentToOpenInvoices($payment, $actor);
+            }
 
             $this->credit->recalculateOutstanding($payment->shop);
 
@@ -182,7 +185,7 @@ class PaymentService
                 "Payment {$payment->number} verified",
                 $payment,
                 null,
-                ['amount' => (float) $payment->amount],
+                ['amount' => (float) $payment->amount, 'invoice_id' => $payment->invoice_id],
                 $actor,
             );
 
@@ -198,6 +201,109 @@ class PaymentService
 
             return $fresh;
         });
+    }
+
+    /**
+     * Apply an unallocated shop payment across open invoices (oldest first).
+     * Leftover amount stays as shop credit when it exceeds open balances.
+     */
+    private function allocateShopPaymentToOpenInvoices(Payment $payment, ?User $actor): Payment
+    {
+        $remaining = round((float) $payment->amount, 2);
+        $openInvoices = Invoice::query()
+            ->where('shop_id', $payment->shop_id)
+            ->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_PARTIAL])
+            ->orderByRaw('COALESCE(due_at, issued_at, created_at)')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        if ($openInvoices->isEmpty() || $remaining <= 0.009) {
+            $payment->update([
+                'status' => Payment::STATUS_VERIFIED,
+                'verified_at' => now(),
+                'verified_by' => $actor?->id,
+            ]);
+
+            return $payment->fresh(['shop', 'invoice']);
+        }
+
+        $first = true;
+        $primary = $payment;
+
+        foreach ($openInvoices as $invoice) {
+            if ($remaining <= 0.009) {
+                break;
+            }
+
+            $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            $apply = round(min($remaining, (float) $invoice->balance), 2);
+            if ($apply <= 0.009) {
+                continue;
+            }
+
+            $this->invoices->applyPayment($invoice, $apply);
+
+            if ($first) {
+                $payment->update([
+                    'invoice_id' => $invoice->id,
+                    'amount' => $apply,
+                    'status' => Payment::STATUS_VERIFIED,
+                    'verified_at' => now(),
+                    'verified_by' => $actor?->id,
+                    'notes' => trim(($payment->notes ? $payment->notes."\n" : '').'Applied to open dues (oldest first).'),
+                ]);
+                $primary = $payment->fresh(['shop', 'invoice']);
+                $first = false;
+            } else {
+                Payment::query()->create([
+                    'number' => $this->nextNumber(),
+                    'shop_id' => $payment->shop_id,
+                    'invoice_id' => $invoice->id,
+                    'amount' => $apply,
+                    'method' => $payment->method,
+                    'reference' => $payment->reference,
+                    'status' => Payment::STATUS_VERIFIED,
+                    'paid_at' => $payment->paid_at ?? now(),
+                    'verified_at' => now(),
+                    'verified_by' => $actor?->id,
+                    'notes' => 'Split from '.$payment->number.' · applied to open dues',
+                    'created_by' => $actor?->id ?? $payment->created_by,
+                ]);
+            }
+
+            $remaining = round($remaining - $apply, 2);
+        }
+
+        if ($first) {
+            // No invoice had a positive balance — keep as shop credit.
+            $payment->update([
+                'status' => Payment::STATUS_VERIFIED,
+                'verified_at' => now(),
+                'verified_by' => $actor?->id,
+            ]);
+
+            return $payment->fresh(['shop', 'invoice']);
+        }
+
+        if ($remaining > 0.009) {
+            Payment::query()->create([
+                'number' => $this->nextNumber(),
+                'shop_id' => $payment->shop_id,
+                'invoice_id' => null,
+                'amount' => $remaining,
+                'method' => $payment->method,
+                'reference' => $payment->reference,
+                'status' => Payment::STATUS_VERIFIED,
+                'paid_at' => $payment->paid_at ?? now(),
+                'verified_at' => now(),
+                'verified_by' => $actor?->id,
+                'notes' => 'Unapplied remainder from '.$payment->number,
+                'created_by' => $actor?->id ?? $payment->created_by,
+            ]);
+        }
+
+        return $primary->fresh(['shop', 'invoice']);
     }
 
     private function isAdvanceInvoice(int $invoiceId): bool

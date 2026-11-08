@@ -840,11 +840,11 @@ class FieldPortalController extends Controller
     {
         abort_unless($this->salesmanCanAccessOrder($request->user(), $order), 403);
 
-        $order->load(['shop', 'items', 'visit', 'advanceInvoice', 'invoice', 'delivery']);
+        $order->load(['shop', 'items', 'visit', 'advanceInvoice', 'invoice', 'delivery.assignee']);
 
         if ($order->isDelivered() && ! $order->invoice_id) {
             app(InvoiceService::class)->createFromOrder($order->fresh('items'), $request->user());
-            $order->refresh()->load(['shop', 'items', 'visit', 'advanceInvoice', 'invoice', 'delivery']);
+            $order->refresh()->load(['shop', 'items', 'visit', 'advanceInvoice', 'invoice', 'delivery.assignee']);
         }
 
         return view('field.order-show', [
@@ -918,7 +918,25 @@ class FieldPortalController extends Controller
     {
         abort_unless($this->salesmanCanAccessOrder($request->user(), $order), 403);
 
-        $this->orders->deliver($order, $request->user(), 'Salesman marked the goods delivered');
+        $order->loadMissing('delivery.assignee');
+        $user = $request->user();
+
+        if (! $order->delivery) {
+            throw ValidationException::withMessages([
+                'order' => 'Wait for office to dispatch and assign a delivery man before marking delivered.',
+            ]);
+        }
+
+        if ((int) $order->delivery->assigned_to !== (int) $user->id) {
+            $name = $order->delivery->assignee?->name;
+            throw ValidationException::withMessages([
+                'order' => $name
+                    ? "This drop is assigned to {$name}. Only they can mark it delivered."
+                    : 'This drop has no delivery man yet. Ask office to assign one.',
+            ]);
+        }
+
+        $this->orders->deliver($order, $user, 'Salesman marked the goods delivered');
 
         return redirect()->route('field.orders.show', $order)
             ->with('success', 'Order '.$order->number.' delivered. Collect remaining baki whenever they have cash.');
@@ -972,14 +990,9 @@ class FieldPortalController extends Controller
     public function deliveries(Request $request)
     {
         $user = $request->user();
-        $shopIds = $user->assignedShops()->pluck('shops.id');
 
-        $base = Delivery::query()
-            ->where(function ($q) use ($user, $shopIds) {
-                $q->where('assigned_to', $user->id)
-                    ->orWhereHas('order', fn ($o) => $o->where('salesman_id', $user->id))
-                    ->orWhereIn('shop_id', $shopIds);
-            });
+        // Only deliveries the admin explicitly assigned to this delivery man.
+        $base = Delivery::query()->where('assigned_to', $user->id);
 
         $byStatus = (clone $base)
             ->selectRaw('status, COUNT(*) as n')
@@ -988,12 +1001,14 @@ class FieldPortalController extends Controller
 
         $counts = [
             'all' => (int) $byStatus->sum(),
+            'assigned' => (int) ($byStatus[Delivery::STATUS_ASSIGNED] ?? 0),
             'out' => (int) ($byStatus[Delivery::STATUS_OUT_FOR_DELIVERY] ?? 0),
             'delivered' => (int) ($byStatus[Delivery::STATUS_DELIVERED] ?? 0),
             'failed' => (int) ($byStatus[Delivery::STATUS_FAILED] ?? 0),
         ];
 
         $filters = [
+            'assigned' => Delivery::STATUS_ASSIGNED,
             'out' => Delivery::STATUS_OUT_FOR_DELIVERY,
             'delivered' => Delivery::STATUS_DELIVERED,
             'failed' => Delivery::STATUS_FAILED,
@@ -1003,7 +1018,7 @@ class FieldPortalController extends Controller
         $deliveries = (clone $base)
             ->with(['shop', 'order.invoice', 'order.advanceInvoice', 'order.delivery', 'assignee'])
             ->when($filter, fn ($q) => $q->where('status', $filters[$filter]))
-            ->orderByRaw("CASE status WHEN 'out_for_delivery' THEN 0 WHEN 'failed' THEN 1 ELSE 2 END")
+            ->orderByRaw("CASE status WHEN 'assigned' THEN 0 WHEN 'out_for_delivery' THEN 1 WHEN 'failed' THEN 2 ELSE 3 END")
             ->latest('dispatched_at')
             ->paginate(20)
             ->withQueryString();
@@ -1035,6 +1050,10 @@ class FieldPortalController extends Controller
 
         $this->deliveryStock->receive($delivery, $data['items'], $request->user());
 
+        if (in_array($delivery->fresh()->status, [Delivery::STATUS_ASSIGNED, Delivery::STATUS_PENDING], true)) {
+            $this->fulfilment->markOutForDelivery($delivery->fresh(), $request->user());
+        }
+
         return redirect()->route('field.deliveries.show', $delivery)
             ->with('success', 'Received quantities saved. Stock is now with you for delivery.');
     }
@@ -1057,12 +1076,19 @@ class FieldPortalController extends Controller
             $request->boolean('complete', true),
         );
 
+        $returnNumber = null;
         if ($request->boolean('complete', true) && $delivery->fresh()->status !== Delivery::STATUS_DELIVERED) {
             $this->fulfilment->markDelivered($delivery->fresh(), $request->user(), 'Salesman confirmed delivered quantities');
+            $pendingReturn = app(\App\Services\ReturnService::class)
+                ->createPendingFromDeliveryShortfall($delivery->fresh(['items', 'order.items']), $request->user());
+            $returnNumber = $pendingReturn?->number;
         }
 
-        return redirect()->route('field.deliveries.show', $delivery)
-            ->with('success', 'Delivered quantities saved. Remaining stock stays with you until you return it.');
+        $message = $returnNumber
+            ? 'Delivered quantities saved. Unsold units sent to Returns as '.$returnNumber.' (pending admin verification — not added to inventory yet).'
+            : 'Delivered quantities saved.';
+
+        return redirect()->route('field.deliveries.show', $delivery)->with('success', $message);
     }
 
     public function returnDeliveryStock(Request $request, Delivery $delivery)
@@ -1078,7 +1104,7 @@ class FieldPortalController extends Controller
         $this->deliveryStock->returnToWarehouse($delivery, $data['items'], $request->user());
 
         return redirect()->route('field.deliveries.show', $delivery)
-            ->with('success', 'Returned stock booked back into the warehouse.');
+            ->with('success', 'Unsold stock submitted to Returns for admin verification. Inventory will update only after approval.');
     }
 
     public function deliveryStock(Request $request)
@@ -1096,11 +1122,7 @@ class FieldPortalController extends Controller
 
     private function assertSalesmanDelivery(User $user, Delivery $delivery): void
     {
-        $allowed = (int) $delivery->assigned_to === (int) $user->id
-            || (int) $delivery->order?->salesman_id === (int) $user->id
-            || $user->assignedShops()->where('shops.id', $delivery->shop_id)->exists();
-
-        abort_unless($allowed, 403);
+        abort_unless((int) $delivery->assigned_to === (int) $user->id, 403);
     }
 
     public function announcements(Request $request)

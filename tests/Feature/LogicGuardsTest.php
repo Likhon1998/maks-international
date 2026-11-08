@@ -94,7 +94,7 @@ class LogicGuardsTest extends TestCase
         $this->post(route('fulfilment.start-pick', $f));
         $this->post(route('fulfilment.complete-pick', $f), ['warehouse_notes' => 'ok']);
         $this->post(route('fulfilment.pack', $f));
-        $this->post(route('fulfilment.dispatch', $f), ['assigned_to' => $this->super->id, 'tracking_ref' => 'T']);
+        $this->post(route('fulfilment.dispatch', $f), ['assigned_to' => $this->salesman->id, 'tracking_ref' => 'T']);
         $this->post(route('fulfilment.deliver', $f->fresh()))->assertSessionHasNoErrors();
         $this->assertSame(Order::STATUS_DELIVERED, $order->fresh()->status);
 
@@ -228,9 +228,10 @@ class LogicGuardsTest extends TestCase
 
         $stale = ProductReturn::findOrFail($return->id);
         $stockBefore = (int) $product->fresh()->stock_on_hand;
-        app(ReturnService::class)->approve($return, $this->super);
+        // Approve + restock in one step — inventory must not change on approve alone.
+        app(ReturnService::class)->approve($return, $this->super, null, restockNow: true);
         try {
-            app(ReturnService::class)->approve($stale, $this->super);
+            app(ReturnService::class)->approve($stale, $this->super, null, restockNow: true);
             $this->fail('Second approve should be refused.');
         } catch (ValidationException) {
         }

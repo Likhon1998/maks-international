@@ -1,24 +1,26 @@
 @extends('layouts.app')
 @section('title', 'Returns')
 @section('content')
-    <x-page-header title="Returns" subtitle="Warranty, defect and wrong-item claims" action="{{ route('returns.create') }}" action-label="New return">
-        <x-slot:description>Approved returns issue shop credit and optionally restock the warehouse.</x-slot:description>
+    <x-page-header title="Product Returns" subtitle="Unsold / rejected goods awaiting verification before inventory restock" action="{{ route('returns.create') }}" action-label="New return">
+        <x-slot:description>Pending returns do not change warehouse stock. Approve, then add to inventory.</x-slot:description>
     </x-page-header>
 
     @if (session('success'))
         <div class="card" style="padding:12px 16px;margin-bottom:14px;background:#e8f8ee;color:#15803d">{{ session('success') }}</div>
     @endif
 
-    <div class="card" style="padding:14px;margin-bottom:14px">
-        <form class="filters" method="get">
-            <select class="select" name="status">
-                <option value="">All statuses</option>
-                @foreach (['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $value => $label)
-                    <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
-                @endforeach
-            </select>
-            <button class="btn btn-ghost" type="submit">Filter</button>
-        </form>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        @foreach ([
+            '' => ['All', $counts['all']],
+            'pending' => ['Pending Return', $counts['pending']],
+            'approved' => ['Approved', $counts['approved']],
+            'restocked' => ['Added to Inventory', $counts['restocked']],
+            'rejected' => ['Rejected', $counts['rejected']],
+        ] as $key => [$label, $count])
+            <a class="btn {{ ($status ?? '') === $key ? 'btn-primary' : 'btn-ghost' }} btn-sm" href="{{ route('returns.index', array_filter(['status' => $key ?: null])) }}">
+                {{ $label }} <strong style="margin-left:4px">{{ $count }}</strong>
+            </a>
+        @endforeach
     </div>
 
     <div class="card">
@@ -27,11 +29,13 @@
                 <thead>
                     <tr>
                         <th>Return</th>
+                        <th>Date</th>
                         <th>Shop</th>
-                        <th>Order</th>
+                        <th>Salesman</th>
+                        <th>Products</th>
+                        <th>Qty</th>
                         <th>Reason</th>
                         <th>Total</th>
-                        <th>Restock</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -39,15 +43,17 @@
                     @forelse ($returns as $return)
                         <tr>
                             <td><a class="link" href="{{ route('returns.show', $return) }}">{{ $return->number }}</a></td>
+                            <td class="muted">{{ $return->created_at?->format('d M Y H:i') }}</td>
                             <td>{{ $return->shop?->name }}</td>
-                            <td class="muted">{{ $return->order?->number ?: '—' }}</td>
+                            <td>{{ $return->order?->salesman?->name ?: ($return->creator?->name ?: '—') }}</td>
+                            <td style="max-width:240px">{{ $return->productSummary() }}</td>
+                            <td style="font-weight:700">{{ $return->totalQuantity() }}</td>
                             <td>{{ $return->reasonTypeLabel() }}</td>
                             <td style="font-weight:700">{{ \App\Support\DemoData::taka($return->total) }}</td>
-                            <td class="muted">{{ $return->restock ? 'Yes' : 'No' }}</td>
                             <td><x-badge :status="$return->statusLabel()" /></td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="muted" style="padding:24px;text-align:center">No returns yet.</td></tr>
+                        <tr><td colspan="9" class="muted" style="padding:24px;text-align:center">No returns in this filter.</td></tr>
                     @endforelse
                 </tbody>
             </table>

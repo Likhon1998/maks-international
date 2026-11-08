@@ -60,7 +60,7 @@ class PartnerInquiryController extends Controller
         }
 
         if ($result['login_by_field']) {
-            return back()->with('success', 'Accepted. Shop '.$result['shop']->code.' is active. '
+            return back()->with('success', 'Approved. Shop '.$result['shop']->code.' is active. '
                 .($partnerInquiry->submitter?->name ?? 'The field officer').' will now create the owner\'s login from the field app.');
         }
 
@@ -100,7 +100,7 @@ class PartnerInquiryController extends Controller
         ]);
 
         return back()
-            ->with('success', 'Accepted. Shop '.$result['shop']->code.' is active with portal login '.$result['email'].'.')
+            ->with('success', 'Approved. Shop '.$result['shop']->code.' is active with portal login '.$result['email'].'.')
             ->with('accepted_inquiry_id', $result['inquiry']->id)
             ->with('whatsapp_chat_url', $result['whatsapp']['chat_url'] ?? null)
             ->with('cred_email', $result['email'])

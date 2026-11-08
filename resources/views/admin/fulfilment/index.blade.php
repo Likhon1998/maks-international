@@ -18,7 +18,7 @@
         @keydown.escape.window="closeDetail()"
     >
         <div class="fw-top">
-            <div class="page-kicker"><strong>Warehouse desk</strong> / Approve, then deliver</div>
+            <div class="page-kicker"><strong>Warehouse desk</strong> / Pick → pack → assign delivery man → deliver</div>
             <div class="fw-top-actions">
                 <button type="button" class="btn btn-ghost btn-sm" @click="listCollapsed = !listCollapsed; $nextTick(() => { if (window.lucide) lucide.createIcons(); })" :disabled="busy">
                     <span x-text="listCollapsed ? 'Show list' : 'Hide list'"></span>
@@ -38,12 +38,14 @@
         <div class="fw-stages" :class="{ 'is-locked': busy }">
             <button type="button" class="fw-stage" :class="{ active: status === 'work' }" @click="setStatus('work')" :disabled="busy">
                 <span class="fw-stage-count" x-text="workCount()"></span>
-                <span class="fw-stage-label">To deliver</span>
+                <span class="fw-stage-label">In progress</span>
             </button>
-            <button type="button" class="fw-stage" :class="{ active: status === 'delivered' }" @click="setStatus('delivered')" :disabled="busy">
-                <span class="fw-stage-count" x-text="counts.delivered || 0"></span>
-                <span class="fw-stage-label">Delivered</span>
-            </button>
+            <template x-for="(label, key) in stages" :key="key">
+                <button type="button" class="fw-stage" :class="{ active: status === key }" @click="setStatus(key)" :disabled="busy">
+                    <span class="fw-stage-count" x-text="counts[key] || 0"></span>
+                    <span class="fw-stage-label" x-text="label"></span>
+                </button>
+            </template>
         </div>
 
         <div class="fw-layout" :class="{ 'list-collapsed': listCollapsed }">
@@ -166,12 +168,67 @@
                                     </div>
                                 </div>
 
-                                <div class="fw-action-card" x-show="detail.can_deliver_now">
-                                    <div class="fw-action-title">Assign & deliver</div>
-                                    <p class="muted" style="margin:0 0 8px;font-size:12px">Choose the salesman who will take and deliver this order.</p>
-                                    <label class="label" style="margin-bottom:4px">Salesman</label>
+                                <div class="fw-action-card" x-show="detail.can_start_pick">
+                                    <div class="fw-action-title">Start pick</div>
+                                    <p class="muted" style="margin:0 0 8px;font-size:12px">Begin picking this order in the warehouse.</p>
+                                    <button type="button" class="btn btn-primary btn-sm" @click="run('start_pick')" :disabled="busy">
+                                        <span class="fw-btn-inner">
+                                            <span class="fw-spinner sm light" x-show="busyAction === 'start_pick'"></span>
+                                            <span x-text="busyAction === 'start_pick' ? 'Starting…' : 'Start picking'"></span>
+                                        </span>
+                                    </button>
+                                </div>
+
+                                <div class="fw-action-card" x-show="detail.can_complete_pick">
+                                    <div class="fw-action-title">Complete pick</div>
+                                    <p class="muted" style="margin:0 0 8px;font-size:12px">Confirm stock deducted for this order.</p>
+                                    <input class="input input-sm" x-model="notes" placeholder="Warehouse notes (optional)" :disabled="busy" style="margin-bottom:8px">
+                                    <button type="button" class="btn btn-primary btn-sm" @click="run('complete_pick')" :disabled="busy">
+                                        <span class="fw-btn-inner">
+                                            <span class="fw-spinner sm light" x-show="busyAction === 'complete_pick'"></span>
+                                            <span x-text="busyAction === 'complete_pick' ? 'Saving…' : 'Mark picked'"></span>
+                                        </span>
+                                    </button>
+                                </div>
+
+                                <div class="fw-action-card" x-show="detail.can_pack">
+                                    <div class="fw-action-title">Pack</div>
+                                    <p class="muted" style="margin:0 0 8px;font-size:12px">Pack the order and prepare for dispatch.</p>
+                                    <input class="input input-sm" x-model="notes" placeholder="Pack notes (optional)" :disabled="busy" style="margin-bottom:8px">
+                                    <button type="button" class="btn btn-primary btn-sm" @click="run('pack')" :disabled="busy">
+                                        <span class="fw-btn-inner">
+                                            <span class="fw-spinner sm light" x-show="busyAction === 'pack'"></span>
+                                            <span x-text="busyAction === 'pack' ? 'Packing…' : 'Mark packed'"></span>
+                                        </span>
+                                    </button>
+                                </div>
+
+                                <div class="fw-action-card" x-show="detail.can_dispatch">
+                                    <div class="fw-action-title">Dispatch</div>
+                                    <p class="muted" style="margin:0 0 8px;font-size:12px">Assign a delivery man. They will see this drop in the field Delivery panel.</p>
+                                    <label class="label" style="margin-bottom:4px">Delivery man</label>
                                     <select class="select select-sm" x-model="assignedTo" :disabled="busy" style="margin-bottom:8px;width:100%">
-                                        <option value="">Select salesman…</option>
+                                        <option value="">Select delivery man…</option>
+                                        <template x-for="driver in drivers" :key="driver.id">
+                                            <option :value="String(driver.id)" x-text="driver.name"></option>
+                                        </template>
+                                    </select>
+                                    <input class="input input-sm" x-model="trackingRef" placeholder="Tracking ref (optional)" :disabled="busy" style="margin-bottom:8px">
+                                    <input class="input input-sm" x-model="notes" placeholder="Dispatch notes (optional)" :disabled="busy" style="margin-bottom:8px">
+                                    <button type="button" class="btn btn-primary btn-sm" @click="run('dispatch')" :disabled="busy || !assignedTo">
+                                        <span class="fw-btn-inner">
+                                            <span class="fw-spinner sm light" x-show="busyAction === 'dispatch'"></span>
+                                            <span x-text="busyAction === 'dispatch' ? 'Dispatching…' : 'Assign & dispatch'"></span>
+                                        </span>
+                                    </button>
+                                </div>
+
+                                <div class="fw-action-card" x-show="detail.can_deliver_now && !detail.can_dispatch">
+                                    <div class="fw-action-title">Assign & deliver</div>
+                                    <p class="muted" style="margin:0 0 8px;font-size:12px">Shortcut: assign a delivery man and mark delivered in one step (skips field receive).</p>
+                                    <label class="label" style="margin-bottom:4px">Delivery man</label>
+                                    <select class="select select-sm" x-model="assignedTo" :disabled="busy" style="margin-bottom:8px;width:100%">
+                                        <option value="">Select delivery man…</option>
                                         <template x-for="driver in drivers" :key="driver.id">
                                             <option :value="String(driver.id)" x-text="driver.name"></option>
                                         </template>
@@ -216,8 +273,12 @@ function fulfilmentWorkspace(cfg) {
         permissions: cfg.permissions || {},
         stages: cfg.stages || {},
         shortStages: {
-            ready: 'Approved',
-            delivered: 'Delivered',
+            awaiting_pick: 'Pick',
+            picking: 'Picking',
+            picked: 'Picked',
+            packed: 'Pack',
+            dispatched: 'Out',
+            delivered: 'Done',
         },
         csrf: cfg.csrf,
         workspaceBase: cfg.workspaceBase,
@@ -248,7 +309,7 @@ function fulfilmentWorkspace(cfg) {
             return this.shortStages[key] || key;
         },
         shortStatus(status) {
-            return status === 'delivered' ? 'Delivered' : 'Approved';
+            return (this.stages && this.stages[status]) || status;
         },
         actionLabel(action) {
             return ({

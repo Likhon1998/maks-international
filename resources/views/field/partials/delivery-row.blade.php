@@ -4,6 +4,7 @@
         ? ($when->isToday() ? 'Today '.$when->format('g:i A') : $when->format('d M Y'))
         : '—';
     $icon = match ($delivery->status) {
+        \App\Models\Delivery::STATUS_ASSIGNED => 'user-check',
         \App\Models\Delivery::STATUS_DELIVERED => 'package-check',
         \App\Models\Delivery::STATUS_FAILED => 'package-x',
         default => 'truck',
@@ -30,10 +31,10 @@
         @if ($due > 0.009)
             <div class="f-collect-pill">Baki {{ \App\Support\DemoData::taka($due) }}</div>
         @endif
-        @if ($delivery->assignee?->name || $delivery->delivery_address)
+        @if ($delivery->shop?->phone || $delivery->delivery_address)
             <div class="f-muted f-small" style="margin-top:4px">
-                @if ($delivery->assignee?->name)Rider {{ $delivery->assignee->name }}@endif
-                @if ($delivery->assignee?->name && $delivery->delivery_address) · @endif
+                @if ($delivery->shop?->phone){{ $delivery->shop->phone }}@endif
+                @if ($delivery->shop?->phone && $delivery->delivery_address) · @endif
                 @if ($delivery->delivery_address){{ \Illuminate\Support\Str::limit($delivery->delivery_address, 42) }}@endif
             </div>
         @endif

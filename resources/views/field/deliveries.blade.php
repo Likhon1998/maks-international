@@ -1,7 +1,7 @@
 @extends('field.layouts.app')
 @section('title', 'Deliveries')
 @section('heading', 'Deliveries')
-@section('subheading', $counts['all'].' deliveries · '.$counts['out'].' on the way')
+@section('subheading', $counts['all'].' assigned to you · '.$counts['out'].' on the way')
 @section('actions')
     <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.deliveries.stock') }}"><i data-lucide="package"></i> Stock</a>
     <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.orders') }}"><i data-lucide="receipt-text"></i> Orders</a>
@@ -10,6 +10,7 @@
     @php
         $tabs = [
             'all' => 'All',
+            'assigned' => 'Assigned',
             'out' => 'On the way',
             'delivered' => 'Delivered',
             'failed' => 'Failed',
@@ -17,6 +18,11 @@
     @endphp
 
     <div class="f-kpis">
+        <a class="f-kpi tone-violet" href="{{ route('field.deliveries', ['status' => 'assigned']) }}">
+            <div class="f-kpi-top"><span class="f-ico"><i data-lucide="user-check"></i></span><span class="f-kpi-label">Assigned</span></div>
+            <div class="f-kpi-value">{{ $counts['assigned'] }}</div>
+            <div class="f-kpi-meta">Waiting to go out</div>
+        </a>
         <a class="f-kpi tone-sky" href="{{ route('field.deliveries', ['status' => 'out']) }}">
             <div class="f-kpi-top"><span class="f-ico"><i data-lucide="truck"></i></span><span class="f-kpi-label">On the way</span></div>
             <div class="f-kpi-value">{{ $counts['out'] }}</div>
@@ -31,11 +37,6 @@
             <div class="f-kpi-top"><span class="f-ico"><i data-lucide="package-x"></i></span><span class="f-kpi-label">Failed</span></div>
             <div class="f-kpi-value">{{ $counts['failed'] }}</div>
             <div class="f-kpi-meta">Need follow-up</div>
-        </a>
-        <a class="f-kpi tone-violet" href="{{ route('field.deliveries') }}">
-            <div class="f-kpi-top"><span class="f-ico"><i data-lucide="list"></i></span><span class="f-kpi-label">All</span></div>
-            <div class="f-kpi-value">{{ $counts['all'] }}</div>
-            <div class="f-kpi-meta">Your shops</div>
         </a>
     </div>
 
@@ -55,7 +56,7 @@
                         <th>Delivery</th>
                         <th>Shop</th>
                         <th>Order</th>
-                        <th>Rider</th>
+                        <th>Contact</th>
                         <th>When</th>
                         <th class="num">Amount</th>
                         <th>Status</th>
@@ -87,7 +88,12 @@
                                     <span class="f-muted">—</span>
                                 @endif
                             </td>
-                            <td>{{ $delivery->assignee?->name ?: '—' }}</td>
+                            <td>
+                                <span class="strong">{{ $delivery->shop?->phone ?: '—' }}</span>
+                                @if ($delivery->delivery_address)
+                                    <span class="sub">{{ \Illuminate\Support\Str::limit($delivery->delivery_address, 36) }}</span>
+                                @endif
+                            </td>
                             <td>
                                 {{ $when?->format('d M Y') ?: '—' }}
                                 <span class="sub">{{ $when?->format('g:i A') }}</span>
@@ -109,7 +115,7 @@
                                 @if ($filter)
                                     No deliveries in this list.
                                 @else
-                                    No deliveries yet. When your orders are dispatched, they show up here.
+                                    No deliveries yet. When admin assigns a delivery to you, it shows up here.
                                 @endif
                             </td>
                         </tr>
@@ -126,7 +132,7 @@
             <div class="f-empty">
                 <i data-lucide="truck"></i>
                 <strong>{{ $filter ? 'No deliveries here' : 'No deliveries yet' }}</strong>
-                {{ $filter ? 'Try another filter.' : 'When the office dispatches your shop orders, they appear here.' }}
+                {{ $filter ? 'Try another filter.' : 'When admin assigns a delivery to you, it appears here.' }}
                 @unless ($filter)
                     <a class="f-btn f-btn-primary" style="margin-top:12px" href="{{ route('field.orders') }}"><i data-lucide="receipt-text"></i> View orders</a>
                 @endunless

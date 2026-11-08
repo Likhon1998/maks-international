@@ -51,6 +51,8 @@ class FieldDeliveriesTest extends TestCase
             'fulfilment_id' => $fulfilment->id,
             'warehouse_id' => $warehouse->id,
             'shop_id' => $shop->id,
+            'assigned_to' => $salesman->id,
+            'assigned_at' => now(),
             'status' => Delivery::STATUS_OUT_FOR_DELIVERY,
             'dispatched_at' => now(),
             'delivery_address' => $shop->address ?: 'Dhaka',
@@ -119,6 +121,13 @@ class FieldDeliveriesTest extends TestCase
 
         $this->post(route('deliveries.retry', $delivery))
             ->assertSessionHasNoErrors();
+        $this->assertSame(Delivery::STATUS_PENDING, $delivery->fresh()->status);
+
+        $salesman = User::where('email', 'karim@field.local')->firstOrFail();
+        $this->post(route('deliveries.assign', $delivery), [
+            'assigned_to' => $salesman->id,
+            'mark_out' => 1,
+        ])->assertSessionHasNoErrors();
         $this->assertSame(Delivery::STATUS_OUT_FOR_DELIVERY, $delivery->fresh()->status);
 
         $this->post(route('deliveries.deliver', $delivery))

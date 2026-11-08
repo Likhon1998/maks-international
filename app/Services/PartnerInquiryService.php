@@ -52,7 +52,7 @@ class PartnerInquiryService
 
         $password = $loginByField ? null : $this->temporaryPassword();
 
-        return DB::transaction(function () use ($inquiry, $actor, $password, $loginByField) {
+        $result = DB::transaction(function () use ($inquiry, $actor, $password, $loginByField) {
             $inquiry = PartnerInquiry::query()->lockForUpdate()->findOrFail($inquiry->id);
             if ($inquiry->status === PartnerInquiry::STATUS_CONVERTED) {
                 throw new RuntimeException('This request is already accepted.');
@@ -66,19 +66,42 @@ class PartnerInquiryService
                 'phone' => $inquiry->phone,
             ];
 
+            $phone = $inquiry->phone ? BangladeshPhone::normalize($inquiry->phone) : null;
             $existing = $inquiry->shop_id ? Shop::query()->find($inquiry->shop_id) : null;
+
+            if (! $existing && $phone) {
+                $samePhone = Shop::query()->where('phone', $phone)->first();
+                if ($samePhone) {
+                    $alreadyClaimed = $samePhone->users()->exists()
+                        || PartnerInquiry::query()
+                            ->where('shop_id', $samePhone->id)
+                            ->where('status', PartnerInquiry::STATUS_CONVERTED)
+                            ->exists();
+                    if ($alreadyClaimed) {
+                        throw new RuntimeException("{$phone} already belongs to {$samePhone->name} ({$samePhone->code}). This looks like an existing shop — update that shop instead of creating a duplicate.");
+                    }
+                    // Reuse an unclaimed shop (e.g. field-added pending record) instead of blocking approval.
+                    $existing = $samePhone;
+                }
+            }
 
             if ($existing) {
                 $existing->update(array_filter([
+                    'name' => $existing->name ?: $inquiry->business_name,
                     'owner_name' => $existing->owner_name ?: $inquiry->contact_name,
-                    'phone' => $existing->phone ?: $inquiry->phone,
+                    'phone' => $existing->phone ?: ($phone ?? $inquiry->phone),
                     'email' => $existing->email ?: $inquiry->email,
                     'city' => $existing->city ?: $inquiry->city,
                     'price_group_id' => $existing->price_group_id ?: $priceGroupId,
+                    'assigned_salesman_id' => $existing->assigned_salesman_id
+                        ?: ($inquiry->isFromField() ? $inquiry->submitted_by : null),
                 ], fn ($v) => $v !== null && $v !== ''));
 
                 if ($existing->status === Shop::STATUS_ON_HOLD) {
                     throw new RuntimeException("{$existing->name} is on hold. Take it off hold on the shop page before accepting this request.");
+                }
+                if ($existing->status === Shop::STATUS_REJECTED) {
+                    throw new RuntimeException("{$existing->name} was rejected. Change its status on the shop page before accepting this request.");
                 }
                 $shop = $existing->status === Shop::STATUS_ACTIVE ? $existing : $this->shops->approve($existing, $actor);
                 if ($credential) {
@@ -86,12 +109,6 @@ class PartnerInquiryService
                 }
                 $shop = $shop->fresh();
             } else {
-                $phone = $inquiry->phone ? BangladeshPhone::normalize($inquiry->phone) : null;
-                $samePhone = $phone ? Shop::query()->where('phone', $phone)->first() : null;
-                if ($samePhone) {
-                    throw new RuntimeException("{$phone} already belongs to {$samePhone->name} ({$samePhone->code}). This looks like an existing shop — update that shop instead of creating a duplicate.");
-                }
-
                 $shop = $this->shops->create([
                     'name' => $inquiry->business_name,
                     'owner_name' => $inquiry->contact_name ?: $inquiry->business_name,
@@ -126,22 +143,27 @@ class PartnerInquiryService
                 $actor,
             );
 
-            $whatsapp = $loginByField ? [] : $this->whatsapp->notifyApproval(
-                $inquiry->phone,
-                $shop->name,
-                $inquiry->email,
-                $password,
-            );
-
             return [
                 'inquiry' => $inquiry->fresh(),
                 'shop' => $shop,
                 'email' => $loginByField ? null : $inquiry->email,
                 'password' => $password,
-                'whatsapp' => $whatsapp,
+                'whatsapp' => [],
                 'login_by_field' => $loginByField,
             ];
         });
+
+        // Keep WhatsApp outside the DB transaction so a messaging failure never undoes approval.
+        if (! $result['login_by_field']) {
+            $result['whatsapp'] = $this->whatsapp->notifyApproval(
+                $result['inquiry']->phone,
+                $result['shop']->name,
+                $result['email'],
+                $result['password'],
+            );
+        }
+
+        return $result;
     }
 
     /**

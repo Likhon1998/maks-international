@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Order;
+use App\Models\OrderFulfilment;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Shop;
@@ -276,6 +277,8 @@ class FieldOrderBakiTest extends TestCase
             ])
             ->assertSessionHasErrors('amount');
 
+        $this->dispatchAssignedTo($order->fresh(), $salesman, $admin);
+
         $this->actingAs($salesman)
             ->post(route('field.orders.deliver', $order))
             ->assertSessionHasNoErrors();
@@ -399,6 +402,7 @@ class FieldOrderBakiTest extends TestCase
         $admin = User::where('email', 'admin@maksinternational.com')->firstOrFail();
         $this->actingAs($admin)->post(route('orders.invoice', $order))->assertSessionHasNoErrors();
         $this->actingAs($admin)->post(route('orders.approve', $order), ['credit_override' => 1])->assertSessionHasNoErrors();
+        $this->dispatchAssignedTo($order->fresh(), $salesman, $admin);
 
         $this->actingAs($salesman)
             ->post(route('field.orders.deliver', $order))
@@ -428,5 +432,19 @@ class FieldOrderBakiTest extends TestCase
         $page->assertSee('This order baki', false);
         $page->assertSee('Waiting confirm', false);
         $page->assertSee('waiting for office to confirm', false);
+    }
+
+    private function dispatchAssignedTo(Order $order, User $salesman, User $admin): void
+    {
+        $fulfilment = OrderFulfilment::query()->where('order_id', $order->id)->firstOrFail();
+
+        $this->actingAs($admin);
+        $this->post(route('fulfilment.start-pick', $fulfilment))->assertSessionHasNoErrors();
+        $this->post(route('fulfilment.complete-pick', $fulfilment), ['warehouse_notes' => 'ok'])->assertSessionHasNoErrors();
+        $this->post(route('fulfilment.pack', $fulfilment))->assertSessionHasNoErrors();
+        $this->post(route('fulfilment.dispatch', $fulfilment), [
+            'assigned_to' => $salesman->id,
+            'tracking_ref' => 'FIELD-'.$order->id,
+        ])->assertSessionHasNoErrors();
     }
 }

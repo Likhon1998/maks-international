@@ -35,7 +35,7 @@
             <div class="field">
                 <label class="label">Reason type</label>
                 <select class="select" name="reason_type" required>
-                    @foreach (['warranty' => 'Warranty', 'defect' => 'Defect', 'wrong_item' => 'Wrong item', 'other' => 'Other'] as $value => $label)
+                    @foreach (['warranty' => 'Warranty', 'defect' => 'Defect', 'wrong_item' => 'Wrong item', 'not_accepted' => 'Not accepted by shop', 'other' => 'Other'] as $value => $label)
                         <option value="{{ $value }}" @selected(old('reason_type', 'warranty') === $value)>{{ $label }}</option>
                     @endforeach
                 </select>

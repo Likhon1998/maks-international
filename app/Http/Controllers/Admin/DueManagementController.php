@@ -16,7 +16,7 @@ class DueManagementController extends Controller
         abort_unless($request->user()->can('dues.view'), 403);
 
         $filters = $request->only(['shop', 'salesman_id', 'min_outstanding', 'from', 'to']);
-        $rows = $this->dues->outstandingRows($filters);
+        $rows = $this->dues->outstandingRows($filters, $request->user());
         $bySalesman = $this->dues->bySalesman($rows);
         $salesmen = User::query()
             ->where('portal', User::PORTAL_SALESMAN)
@@ -38,7 +38,7 @@ class DueManagementController extends Controller
         abort_unless($request->user()->can('dues.export'), 403);
 
         $filters = $request->only(['shop', 'salesman_id', 'min_outstanding', 'from', 'to']);
-        $rows = $this->dues->outstandingRows($filters);
+        $rows = $this->dues->outstandingRows($filters, $request->user());
         $format = $request->get('format', 'csv');
 
         if ($format === 'pdf') {

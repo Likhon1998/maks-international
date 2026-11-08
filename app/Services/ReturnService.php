@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Delivery;
+use App\Models\DeliveryItem;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
@@ -66,6 +68,7 @@ class ReturnService
                 'number' => $this->nextNumber(),
                 'shop_id' => $order->shop_id,
                 'order_id' => $order->id,
+                'delivery_id' => $data['delivery_id'] ?? null,
                 'invoice_id' => $order->invoice_id,
                 'status' => ProductReturn::STATUS_PENDING,
                 'reason_type' => $data['reason_type'] ?? ProductReturn::REASON_WARRANTY,
@@ -106,7 +109,7 @@ class ReturnService
                 $actor,
             );
 
-            $fresh = $return->fresh(['items.product', 'shop', 'order']);
+            $fresh = $return->fresh(['items.product', 'shop', 'order', 'creator']);
 
             DB::afterCommit(function () use ($fresh) {
                 try {
@@ -121,7 +124,7 @@ class ReturnService
     }
 
     /**
-     * What is still returnable per product on a delivered order: sold minus pending/approved returns,
+     * What is still returnable per product on a delivered order: sold minus pending/approved/restocked returns,
      * priced at the average unit price actually charged on the order.
      *
      * @return array<int, array{sku:string, sold:int, left:int, unit_price:float}>
@@ -168,6 +171,7 @@ class ReturnService
         return $this->create([
             'shop_id' => $order->shop_id,
             'order_id' => $order->id,
+            'delivery_id' => $meta['delivery_id'] ?? null,
             'invoice_id' => $order->invoice_id,
             'reason_type' => $meta['reason_type'] ?? ProductReturn::REASON_WARRANTY,
             'reason' => $meta['reason'] ?? null,
@@ -175,35 +179,66 @@ class ReturnService
         ], $lines, $actor);
     }
 
-    public function approve(ProductReturn $return, ?User $actor = null, ?string $notes = null): ProductReturn
+    /**
+     * After a salesman records shop-accepted quantities, unsold units become a pending return
+     * (no inventory change until admin/manager approves and restocks).
+     */
+    public function createPendingFromDeliveryShortfall(Delivery $delivery, User $actor): ?ProductReturn
+    {
+        $delivery->loadMissing(['items', 'order.items', 'shop']);
+        $order = $delivery->order;
+        if (! $order || $order->status !== Order::STATUS_DELIVERED) {
+            return null;
+        }
+
+        $quantities = [];
+        foreach ($delivery->items as $item) {
+            $left = max(0, (int) $item->qty_received - (int) $item->qty_delivered - (int) $item->qty_returned);
+            if ($left <= 0 || ! $item->product_id) {
+                continue;
+            }
+            $quantities[(int) $item->product_id] = ($quantities[(int) $item->product_id] ?? 0) + $left;
+        }
+
+        if ($quantities === []) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($delivery, $order, $quantities, $actor) {
+            $return = $this->createFromOrder($order->fresh('items'), $quantities, [
+                'delivery_id' => $delivery->id,
+                'reason_type' => ProductReturn::REASON_NOT_ACCEPTED,
+                'reason' => 'Shop accepted fewer units on delivery '.$delivery->number.'. Unsold stock held for return verification — not added to inventory yet.',
+                'restock' => true,
+            ], $actor);
+
+            // Mark units as committed to the return queue so they leave salesman stock,
+            // without booking inventory until restock approval.
+            foreach ($delivery->items as $item) {
+                $left = max(0, (int) $item->qty_received - (int) $item->qty_delivered - (int) $item->qty_returned);
+                if ($left <= 0) {
+                    continue;
+                }
+                $item->update(['qty_returned' => (int) $item->qty_returned + $left]);
+            }
+
+            return $return->fresh(['items', 'shop', 'order', 'creator']);
+        });
+    }
+
+    /**
+     * Verify a pending return and issue shop credit. Does NOT touch main inventory.
+     */
+    public function approve(ProductReturn $return, ?User $actor = null, ?string $notes = null, bool $restockNow = false): ProductReturn
     {
         if ($return->status !== ProductReturn::STATUS_PENDING) {
             throw ValidationException::withMessages(['return' => 'Only pending returns can be approved.']);
         }
 
-        return DB::transaction(function () use ($return, $actor, $notes) {
-            $return = ProductReturn::query()->lockForUpdate()->with(['items.product', 'shop'])->findOrFail($return->id);
+        $approved = DB::transaction(function () use ($return, $actor, $notes) {
+            $return = ProductReturn::query()->lockForUpdate()->with(['items.product', 'shop', 'order'])->findOrFail($return->id);
             if ($return->status !== ProductReturn::STATUS_PENDING) {
                 throw ValidationException::withMessages(['return' => 'Only pending returns can be approved.']);
-            }
-
-            if ($return->restock) {
-                $warehouse = Warehouse::defaultWarehouse();
-                if ($warehouse) {
-                    foreach ($return->items as $item) {
-                        if (! $item->product_id) {
-                            continue;
-                        }
-                        $this->inventory->receive(
-                            $warehouse,
-                            $item->product,
-                            (int) $item->quantity,
-                            $actor,
-                            "Return {$return->number} restock",
-                            $return->number,
-                        );
-                    }
-                }
             }
 
             $invoiceId = $return->invoice_id ?: $return->order?->invoice_id;
@@ -226,14 +261,85 @@ class ReturnService
             $this->auditLogger->log(
                 'returns',
                 'approved',
-                "Return {$return->number} approved — credit issued",
+                "Return {$return->number} approved — credit issued (awaiting inventory restock)",
                 $return,
                 null,
-                ['total' => (float) $return->total, 'restock' => $return->restock, 'applied_to_invoice' => $applied],
+                ['total' => (float) $return->total, 'applied_to_invoice' => $applied],
                 $actor,
             );
 
-            return $return->fresh(['items', 'shop', 'approver']);
+            return $return->fresh(['items', 'shop', 'approver', 'order']);
+        });
+
+        if ($restockNow && $approved->restock) {
+            return $this->addToInventory($approved, $actor, $notes);
+        }
+
+        return $approved;
+    }
+
+    /**
+     * Add approved return quantities back into main warehouse inventory.
+     */
+    public function addToInventory(ProductReturn $return, ?User $actor = null, ?string $notes = null): ProductReturn
+    {
+        if (! in_array($return->status, [ProductReturn::STATUS_APPROVED, ProductReturn::STATUS_PENDING], true)) {
+            throw ValidationException::withMessages(['return' => 'Only approved (or pending with restock-now) returns can be added to inventory.']);
+        }
+
+        return DB::transaction(function () use ($return, $actor, $notes) {
+            $return = ProductReturn::query()->lockForUpdate()->with(['items.product', 'shop'])->findOrFail($return->id);
+
+            if ($return->status === ProductReturn::STATUS_RESTOCKED) {
+                return $return->fresh(['items', 'shop', 'approver', 'restocker']);
+            }
+
+            if ($return->status === ProductReturn::STATUS_PENDING) {
+                throw ValidationException::withMessages(['return' => 'Approve the return before adding stock to inventory.']);
+            }
+
+            if ($return->status !== ProductReturn::STATUS_APPROVED) {
+                throw ValidationException::withMessages(['return' => 'This return cannot be restocked.']);
+            }
+
+            $warehouse = Warehouse::defaultWarehouse();
+            if (! $warehouse) {
+                throw ValidationException::withMessages(['return' => 'No default warehouse is configured for restocking.']);
+            }
+
+            foreach ($return->items as $item) {
+                if (! $item->product_id) {
+                    continue;
+                }
+                $this->inventory->receive(
+                    $warehouse,
+                    $item->product,
+                    (int) $item->quantity,
+                    $actor,
+                    "Return {$return->number} restock",
+                    $return->number,
+                );
+            }
+
+            $return->update([
+                'status' => ProductReturn::STATUS_RESTOCKED,
+                'restock' => true,
+                'restocked_at' => now(),
+                'restocked_by' => $actor?->id,
+                'resolution_notes' => $notes ?: $return->resolution_notes,
+            ]);
+
+            $this->auditLogger->log(
+                'returns',
+                'restocked',
+                "Return {$return->number} added to inventory",
+                $return,
+                null,
+                ['total_qty' => (int) $return->items->sum('quantity')],
+                $actor,
+            );
+
+            return $return->fresh(['items', 'shop', 'approver', 'restocker']);
         });
     }
 

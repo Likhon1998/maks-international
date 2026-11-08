@@ -93,7 +93,7 @@ class WorkflowSmokeTest extends TestCase
         }
         foreach (Shop::all() as $shop) {
             $open = (float) DB::table('invoices')->where('shop_id', $shop->id)->whereIn('status', ['issued', 'partial'])->sum('balance');
-            $credits = (float) DB::table('returns')->where('shop_id', $shop->id)->where('status', 'approved')->where('credit_issued', true)->sum(DB::raw('total - applied_to_invoice'))
+            $credits = (float) DB::table('returns')->where('shop_id', $shop->id)->whereIn('status', ['approved', 'restocked'])->where('credit_issued', true)->sum(DB::raw('total - applied_to_invoice'))
                 + (float) DB::table('payments')->where('shop_id', $shop->id)->where('status', 'verified')->whereNull('invoice_id')->sum('amount');
             if (! $eq($shop->outstanding_balance, max(0, round($open - $credits, 2)))) {
                 $issues[] = "shop {$shop->code} outstanding {$shop->outstanding_balance} vs ".max(0, round($open - $credits, 2));
@@ -147,7 +147,7 @@ class WorkflowSmokeTest extends TestCase
         $this->ok($this->post(route('fulfilment.start-pick', $fulfilment)), 'start pick');
         $this->ok($this->post(route('fulfilment.complete-pick', $fulfilment), ['warehouse_notes' => 'ok']), 'complete pick');
         $this->ok($this->post(route('fulfilment.pack', $fulfilment)), 'pack');
-        $this->ok($this->post(route('fulfilment.dispatch', $fulfilment), ['assigned_to' => $this->admin->id, 'tracking_ref' => 'TRK1']), 'dispatch');
+        $this->ok($this->post(route('fulfilment.dispatch', $fulfilment), ['assigned_to' => $this->salesman->id, 'tracking_ref' => 'TRK1']), 'dispatch');
         $this->ok($this->post(route('fulfilment.deliver', $fulfilment->fresh())), 'deliver');
         $this->assertSame(Order::STATUS_DELIVERED, $order->fresh()->status);
 

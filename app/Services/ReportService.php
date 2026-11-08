@@ -179,6 +179,25 @@ class ReportService
         ];
     }
 
+    /**
+     * System-wide sales / COGS expenses / profit (optionally date-bounded).
+     *
+     * @return array{sales:float,expenses:float,profit:float,qty:int,orders:int}
+     */
+    public function systemTotals(?Carbon $from = null, ?Carbon $to = null): array
+    {
+        $lines = $this->soldLines($from, $to);
+        $eco = $this->economics($lines);
+
+        return [
+            'sales' => $eco['revenue'],
+            'expenses' => $eco['cost'],
+            'profit' => $eco['profit'],
+            'qty' => $eco['qty'],
+            'orders' => $lines->pluck('order_id')->unique()->count(),
+        ];
+    }
+
     private function periodMeta(Carbon $from, Carbon $to, Collection $lines): array
     {
         $eco = $this->economics($lines);
@@ -196,13 +215,19 @@ class ReportService
     /**
      * @return Collection<int, OrderItem>
      */
-    private function soldLines(Carbon $from, Carbon $to): Collection
+    private function soldLines(?Carbon $from = null, ?Carbon $to = null): Collection
     {
         return OrderItem::query()
             ->with(['product.category', 'order.salesman', 'order.shop'])
             ->whereHas('order', function ($query) use ($from, $to) {
-                $query->whereBetween('submitted_at', [$from, $to])
-                    ->whereIn('status', $this->soldStatuses());
+                $query->whereIn('status', $this->soldStatuses());
+                if ($from && $to) {
+                    $query->whereBetween('submitted_at', [$from, $to]);
+                } elseif ($from) {
+                    $query->where('submitted_at', '>=', $from);
+                } elseif ($to) {
+                    $query->where('submitted_at', '<=', $to);
+                }
             })
             ->get();
     }

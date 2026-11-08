@@ -28,10 +28,15 @@
                     <div class="sp-stage">
                         @if ($images)
                             <img
+                                class="sp-stage-img"
                                 src="{{ $images[0] }}"
                                 :src="images[active]"
                                 alt="{{ $product->name }}"
+                                width="900"
+                                height="900"
                                 loading="eager"
+                                decoding="async"
+                                fetchpriority="high"
                             >
                             <span class="sp-count" x-show="images.length > 1" x-cloak x-text="(active + 1) + ' / ' + images.length"></span>
                             <template x-if="images.length > 1">
@@ -55,7 +60,7 @@
                                     @click="active = {{ $index }}"
                                     aria-label="View photo {{ $index + 1 }}"
                                 >
-                                    <img src="{{ $url }}" alt="" loading="lazy">
+                                    <img src="{{ $url }}" alt="" width="120" height="120" loading="lazy" decoding="async">
                                 </button>
                             @endforeach
                         </div>

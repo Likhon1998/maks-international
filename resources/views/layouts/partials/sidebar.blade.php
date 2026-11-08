@@ -3,11 +3,12 @@
     $nav = [
         ['label' => 'SALES & ORDERS', 'items' => [
             ['name' => 'shops.index', 'label' => 'Shops', 'icon' => 'store'],
-            ['name' => 'partner-inquiries.index', 'label' => 'Website leads', 'icon' => 'handshake', 'permission' => 'shops.view'],
+            ['name' => 'partner-inquiries.index', 'label' => 'Partner applications', 'icon' => 'handshake', 'permission' => 'shops.view'],
             ['name' => 'salesmen.index', 'label' => 'Salesmen', 'icon' => 'users', 'permission' => 'salesmen.view'],
             ['name' => 'orders.index', 'label' => 'Orders', 'icon' => 'shopping-bag', 'permission' => 'orders.view'],
             ['name' => 'fulfilment.index', 'label' => 'Warehouse desk', 'icon' => 'clipboard-check', 'permission' => 'fulfilment.view'],
             ['name' => 'deliveries.index', 'label' => 'Deliveries', 'icon' => 'truck', 'permission' => 'deliveries.view'],
+            ['name' => 'deliveries.men', 'label' => 'Delivery men', 'icon' => 'bike', 'permission' => 'deliveries.view'],
             ['name' => 'returns.index', 'label' => 'Returns', 'icon' => 'rotate-ccw'],
             ['name' => 'invoices.index', 'label' => 'Invoices', 'icon' => 'file-text'],
             ['name' => 'payments.index', 'label' => 'Payments', 'icon' => 'wallet'],

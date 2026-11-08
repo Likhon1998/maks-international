@@ -264,7 +264,7 @@ class ShopPortalController extends Controller
         $shop = $request->attributes->get('shop');
         abort_unless($order->shop_id === $shop->id, 404);
 
-        $order->load(['items', 'salesman', 'auditor', 'advanceInvoice', 'invoice']);
+        $order->load(['items', 'salesman', 'auditor', 'advanceInvoice', 'invoice', 'delivery.assignee']);
         $order->setRelation('shop', $shop);
 
         return view('portal.orders.show', [

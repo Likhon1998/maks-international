@@ -242,6 +242,7 @@ class PermissionCatalog
                 'categories.view', 'categories.create', 'categories.edit', 'categories.delete',
                 'brands.view', 'brands.create', 'brands.edit', 'brands.delete',
                 'price_groups.view', 'dues.view', 'dues.export', 'announcements.view', 'announcements.manage',
+                'returns.view', 'returns.create', 'returns.approve', 'returns.reject',
                 'reports.view', 'analytics.view', 'targets.view', 'targets.manage', 'commissions.view', 'rewards.view',
             ],
             'Salesman' => [
@@ -258,6 +259,7 @@ class PermissionCatalog
                 'suppliers.view', 'purchases.view', 'purchases.create',
                 'orders.view', 'products.view', 'products.manage_stock',
                 'deliveries.view', 'deliveries.assign', 'deliveries.update_status',
+                'returns.view', 'returns.approve', 'returns.reject',
             ],
             'Warehouse Staff' => [
                 'warehouses.view', 'inventory.view', 'inventory.receive',

@@ -79,6 +79,42 @@
             </div>
         @endif
 
+        @if (!empty($systemTotals) && $user->isSuperAdmin())
+            <section class="dash-system" aria-label="System-wide financial totals">
+                <div class="dash-system-head">
+                    <div>
+                        <h2 class="section-title">System totals</h2>
+                        <p class="muted" style="margin:4px 0 0;font-size:13px">Entire platform · sales, expenses (cost of goods), and profit</p>
+                    </div>
+                    <a class="dash-link" href="{{ route('reports.show', 'total-sales') }}">Sales report</a>
+                </div>
+                <div class="dash-system-grid">
+                    <div class="dash-system-card is-sales">
+                        <div class="dash-kpi-label">Total sales</div>
+                        <div class="dash-kpi-value">{{ \App\Support\DemoData::taka($systemTotals['sales']) }}</div>
+                        <div class="dash-kpi-meta">{{ number_format($systemTotals['orders']) }} sold orders · {{ number_format($systemTotals['qty']) }} units</div>
+                    </div>
+                    <div class="dash-system-card is-expense">
+                        <div class="dash-kpi-label">Total expenses</div>
+                        <div class="dash-kpi-value">{{ \App\Support\DemoData::taka($systemTotals['expenses']) }}</div>
+                        <div class="dash-kpi-meta">Landed cost of goods sold</div>
+                    </div>
+                    <div class="dash-system-card is-profit {{ $systemTotals['profit'] >= 0 ? 'is-up' : 'is-down' }}">
+                        <div class="dash-kpi-label">Total profit</div>
+                        <div class="dash-kpi-value">{{ \App\Support\DemoData::taka($systemTotals['profit']) }}</div>
+                        <div class="dash-kpi-meta">
+                            @php
+                                $margin = $systemTotals['sales'] > 0
+                                    ? round(($systemTotals['profit'] / $systemTotals['sales']) * 100, 1)
+                                    : 0;
+                            @endphp
+                            {{ $margin }}% margin
+                        </div>
+                    </div>
+                </div>
+            </section>
+        @endif
+
         @unless ($showAnything)
             <div class="card dash-empty">
                 <div class="section-title">No modules assigned yet</div>

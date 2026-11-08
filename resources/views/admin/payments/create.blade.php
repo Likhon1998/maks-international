@@ -196,7 +196,8 @@ function paymentForm(shops, invoices, initialShop, initialInvoice, initialAmount
             if (this.invoiceId && !list.some((i) => String(i.id) === String(this.invoiceId))) {
                 this.invoiceId = '';
             }
-            if (!this.invoiceId && list.length === 1) {
+            // Prefer an open invoice so collecting due reduces invoice balances, not only shop credit.
+            if (!this.invoiceId && list.length > 0) {
                 this.invoiceId = String(list[0].id);
             }
             this.fillDue();

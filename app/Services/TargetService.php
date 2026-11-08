@@ -115,7 +115,7 @@ class TargetService
             ->sum('total');
 
         $returned = (float) ProductReturn::query()
-            ->whereIn('status', [ProductReturn::STATUS_APPROVED, ProductReturn::STATUS_COMPLETED])
+            ->whereIn('status', [ProductReturn::STATUS_APPROVED, ProductReturn::STATUS_RESTOCKED, ProductReturn::STATUS_COMPLETED])
             ->whereBetween('approved_at', [$start, $end])
             ->whereHas('order', fn ($o) => $o->where('salesman_id', $salesmanId))
             ->sum('total');

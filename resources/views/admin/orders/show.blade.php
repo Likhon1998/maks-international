@@ -346,8 +346,18 @@
         <aside class="order-page-aside">
             @if ($order->fulfilment && ! $order->isDelivered())
                 <div class="card" style="padding:14px;margin-bottom:12px">
-                    <div style="font-weight:800;margin-bottom:4px">Ready to deliver</div>
-                    <p class="muted" style="margin:0;font-size:12px">{{ $order->warehouse?->name ?: $order->fulfilment->warehouse?->name }} · approve, then deliver. No pick / pack / dispatch steps.</p>
+                    <div style="font-weight:800;margin-bottom:4px">Warehouse</div>
+                    <p class="muted" style="margin:0;font-size:12px">
+                        {{ $order->warehouse?->name ?: $order->fulfilment->warehouse?->name }}
+                        · {{ $order->fulfilment->statusLabel() }}
+                        @if ($order->fulfilment->delivery?->assignee)
+                            · rider {{ $order->fulfilment->delivery->assignee->name }}
+                        @endif
+                    </p>
+                    <a class="btn btn-ghost btn-sm" style="margin-top:10px" href="{{ route('fulfilment.index', ['open' => $order->fulfilment->id, 'status' => $order->fulfilment->status]) }}">Open warehouse desk</a>
+                    @if ($order->fulfilment->delivery)
+                        <a class="btn btn-ghost btn-sm" style="margin-top:10px" href="{{ route('deliveries.show', $order->fulfilment->delivery) }}">Open delivery</a>
+                    @endif
                 </div>
             @endif
 
@@ -359,15 +369,34 @@
             @endif
 
             @if ($order->canDeliver())
-                @can('orders.approve')
+                @canany(['orders.approve', 'deliveries.update_status'])
                     <form class="card" style="padding:14px;margin-bottom:12px" method="post" action="{{ route('orders.deliver', $order) }}"
                           onsubmit="return confirm('Mark this order as delivered?')">
                         @csrf
                         <div style="font-weight:800;margin-bottom:4px">Deliver</div>
-                        <p class="muted" style="margin:0 0 10px;font-size:12px">One step after approval. Collection is separate.</p>
+                        <p class="muted" style="margin:0 0 10px;font-size:12px">
+                            @if ($order->delivery?->assignee)
+                                Assigned to {{ $order->delivery->assignee->name }}. Collection stays separate.
+                            @else
+                                Choose who delivers this order. Nothing is auto-assigned.
+                            @endif
+                        </p>
+                        @unless ($order->delivery?->assigned_to)
+                            <div class="field" style="margin-bottom:10px">
+                                <label class="label">Delivery man</label>
+                                <select class="select" name="assigned_to" required>
+                                    <option value="">Select delivery man…</option>
+                                    @foreach ($deliveryMen ?? [] as $man)
+                                        <option value="{{ $man->id }}" @selected((string) old('assigned_to') === (string) $man->id)>
+                                            {{ $man->name }}@if ($man->phone) · {{ $man->phone }}@endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endunless
                         <button class="btn btn-primary btn-sm" type="submit">Mark delivered</button>
                     </form>
-                @endcan
+                @endcanany
             @endif
 
             @can('update', $order)

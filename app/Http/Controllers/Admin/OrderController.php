@@ -11,9 +11,12 @@ use App\Models\Product;
 use App\Models\Shop;
 use App\Models\User;
 use App\Services\OrderService;
+use App\Support\DeliveryMen;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -152,7 +155,7 @@ class OrderController extends Controller
         $order->loadMissing([
             'shop.priceGroup', 'salesman', 'visit', 'items.product',
             'creator', 'auditor', 'canceller', 'statusHistories.user',
-            'warehouse', 'fulfilment.delivery',
+            'warehouse', 'fulfilment.delivery.assignee', 'delivery.assignee',
             'invoice.items', 'invoice.payments', 'invoice.shop', 'invoice.creator', 'invoice.order',
             'advanceInvoice.items', 'advanceInvoice.payments', 'advanceInvoice.shop',
             'advanceInvoice.creator', 'advanceInvoice.order',
@@ -182,6 +185,7 @@ class OrderController extends Controller
             'purchase' => $purchase,
             'payload' => $payload,
             'invoicePreviews' => $invoicePreviews,
+            'deliveryMen' => DeliveryMen::available(),
         ]);
     }
 
@@ -229,11 +233,31 @@ class OrderController extends Controller
             403
         );
 
+        $order->loadMissing('delivery');
+        $allowedIds = DeliveryMen::available()->pluck('id')->all();
+        $needsAssignee = ! $order->delivery?->assigned_to;
+
         $data = $request->validate([
+            'assigned_to' => [$needsAssignee ? 'required' : 'nullable', 'integer', Rule::in($allowedIds)],
             'notes' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'assigned_to.required' => 'Select a delivery man before marking delivered.',
+            'assigned_to.in' => 'Select an available delivery man.',
         ]);
 
-        $this->orders->deliver($order, $request->user(), $data['notes'] ?? null);
+        $assigneeId = isset($data['assigned_to']) ? (int) $data['assigned_to'] : null;
+        if ($needsAssignee && ! $assigneeId) {
+            throw ValidationException::withMessages([
+                'assigned_to' => 'Select a delivery man before marking delivered.',
+            ]);
+        }
+
+        app(\App\Services\FulfilmentService::class)->deliverNow(
+            $order,
+            $request->user(),
+            $data['notes'] ?? null,
+            $assigneeId ?: ($order->delivery?->assigned_to ? (int) $order->delivery->assigned_to : null),
+        );
 
         return redirect()->route('orders.show', $order)
             ->with('success', 'Order '.$order->number.' delivered.');

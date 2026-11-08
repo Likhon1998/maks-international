@@ -18,15 +18,24 @@ class ReturnController extends Controller
     {
         abort_unless($request->user()->can('returns.view'), 403);
 
+        $status = $request->get('status');
+        $counts = [
+            'all' => ProductReturn::query()->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))->count(),
+            'pending' => ProductReturn::query()->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))->where('status', ProductReturn::STATUS_PENDING)->count(),
+            'approved' => ProductReturn::query()->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))->where('status', ProductReturn::STATUS_APPROVED)->count(),
+            'restocked' => ProductReturn::query()->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))->where('status', ProductReturn::STATUS_RESTOCKED)->count(),
+            'rejected' => ProductReturn::query()->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))->where('status', ProductReturn::STATUS_REJECTED)->count(),
+        ];
+
         $returns = ProductReturn::query()
             ->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))
-            ->with(['shop', 'order'])
-            ->when($request->status, fn ($q, $status) => $q->where('status', $status))
+            ->with(['shop', 'order.salesman', 'creator', 'items'])
+            ->when($status, fn ($q) => $q->where('status', $status))
             ->latest()
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.returns.index', compact('returns'));
+        return view('admin.returns.index', compact('returns', 'counts', 'status'));
     }
 
     public function create(Request $request)
@@ -47,7 +56,7 @@ class ReturnController extends Controller
         $data = $request->validate([
             'shop_id' => ['required', 'exists:shops,id'],
             'order_id' => ['required', 'exists:orders,id'],
-            'reason_type' => ['required', 'in:warranty,defect,wrong_item,other'],
+            'reason_type' => ['required', 'in:warranty,defect,wrong_item,not_accepted,other'],
             'reason' => ['nullable', 'string', 'max:2000'],
             'restock' => ['nullable', 'boolean'],
             'items' => ['required', 'array'],
@@ -62,7 +71,7 @@ class ReturnController extends Controller
             'restock' => $request->boolean('restock', true),
         ], $data['items'], $request->user());
 
-        return redirect()->route('returns.show', $return)->with('success', 'Return submitted for review.');
+        return redirect()->route('returns.show', $return)->with('success', 'Return submitted for review. Stock is not added to inventory until approved and restocked.');
     }
 
     public function show(Request $request, ProductReturn $productReturn)
@@ -70,7 +79,7 @@ class ReturnController extends Controller
         abort_unless($request->user()->can('returns.view'), 403);
         abort_unless($productReturn->shop?->isAccessibleBy($request->user()), 403);
 
-        $productReturn->load(['shop', 'order', 'invoice', 'items.product', 'approver', 'creator']);
+        $productReturn->load(['shop', 'order.salesman', 'invoice', 'items.product', 'approver', 'restocker', 'creator', 'delivery']);
 
         return view('admin.returns.show', ['return' => $productReturn]);
     }
@@ -80,10 +89,30 @@ class ReturnController extends Controller
         abort_unless($request->user()->can('returns.approve'), 403);
         abort_unless($productReturn->shop?->isAccessibleBy($request->user()), 403);
 
-        $data = $request->validate(['resolution_notes' => ['nullable', 'string', 'max:2000']]);
-        $this->returns->approve($productReturn, $request->user(), $data['resolution_notes'] ?? null);
+        $data = $request->validate([
+            'resolution_notes' => ['nullable', 'string', 'max:2000'],
+            'restock_now' => ['nullable', 'boolean'],
+        ]);
 
-        return back()->with('success', 'Return approved — credit issued'.($productReturn->restock ? ' and stock restocked' : '').'.');
+        $restockNow = $request->boolean('restock_now', true);
+        $this->returns->approve($productReturn, $request->user(), $data['resolution_notes'] ?? null, $restockNow);
+
+        $message = $restockNow
+            ? 'Return approved and quantities added to inventory.'
+            : 'Return approved. Credit issued — add to inventory when ready.';
+
+        return back()->with('success', $message);
+    }
+
+    public function restock(Request $request, ProductReturn $productReturn)
+    {
+        abort_unless($request->user()->can('returns.approve'), 403);
+        abort_unless($productReturn->shop?->isAccessibleBy($request->user()), 403);
+
+        $data = $request->validate(['resolution_notes' => ['nullable', 'string', 'max:2000']]);
+        $this->returns->addToInventory($productReturn, $request->user(), $data['resolution_notes'] ?? null);
+
+        return back()->with('success', 'Returned products added to main inventory.');
     }
 
     public function reject(Request $request, ProductReturn $productReturn)
@@ -94,6 +123,6 @@ class ReturnController extends Controller
         $data = $request->validate(['resolution_notes' => ['required', 'string', 'max:2000']]);
         $this->returns->reject($productReturn, $data['resolution_notes'], $request->user());
 
-        return back()->with('success', 'Return rejected.');
+        return back()->with('success', 'Return rejected. Inventory was not changed.');
     }
 }

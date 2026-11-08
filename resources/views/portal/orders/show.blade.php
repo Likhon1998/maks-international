@@ -38,6 +38,19 @@
             <div class="card" style="padding:14px"><div class="muted" style="font-size:12px">Total baki</div><div style="font-weight:800;color:#c2410c">{{ \App\Support\DemoData::taka($portalTotalBaki) }}</div><div class="muted" style="font-size:11px;margin-top:2px">this order {{ \App\Support\DemoData::taka($portalThisBaki) }} + previous {{ \App\Support\DemoData::taka($portalPrevBaki) }}</div></div>
         @endif
         <div class="card" style="padding:14px"><div class="muted" style="font-size:12px">Salesman</div><div style="font-weight:700">{{ $order->salesman?->name ?: '—' }}</div></div>
+        <div class="card" style="padding:14px">
+            <div class="muted" style="font-size:12px">Delivery</div>
+            <div style="font-weight:700">
+                @if ($order->delivery)
+                    {{ $order->delivery->statusLabel() }}
+                    @if ($order->delivery->assignee)
+                        <span class="muted" style="font-weight:600;font-size:12px"> · {{ $order->delivery->assignee->name }}</span>
+                    @endif
+                @else
+                    {{ $order->isDelivered() ? 'Delivered' : 'Not dispatched yet' }}
+                @endif
+            </div>
+        </div>
         <div class="card" style="padding:14px"><div class="muted" style="font-size:12px">Submitted</div><div style="font-weight:700">{{ $order->submitted_at?->format('d M Y H:i') }}</div></div>
     </div>
 

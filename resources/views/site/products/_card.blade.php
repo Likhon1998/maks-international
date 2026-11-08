@@ -8,9 +8,16 @@
 <article class="site-product">
     <a class="site-product-media" href="{{ route('site.products.show', $product) }}">
         @if ($product->imageUrl())
-            <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" loading="lazy">
+            <img
+                src="{{ $product->imageUrl() }}"
+                alt="{{ $product->name }}"
+                width="640"
+                height="640"
+                loading="lazy"
+                decoding="async"
+            >
         @else
-            <span class="site-product-placeholder">{{ mb_strtoupper(mb_substr($product->name, 0, 1)) }}</span>
+            <span class="site-product-placeholder" aria-hidden="true">{{ mb_strtoupper(mb_substr($product->name, 0, 1)) }}</span>
         @endif
     </a>
     <div class="site-product-body">

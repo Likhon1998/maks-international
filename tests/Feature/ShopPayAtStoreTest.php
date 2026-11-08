@@ -296,6 +296,8 @@ class ShopPayAtStoreTest extends TestCase
             'fulfilment_id' => $fulfilment->id,
             'warehouse_id' => $warehouse->id,
             'shop_id' => $shop->id,
+            'assigned_to' => $salesman?->id,
+            'assigned_at' => $salesman ? now() : null,
             'status' => Delivery::STATUS_OUT_FOR_DELIVERY,
             'dispatched_at' => now(),
             'delivery_address' => $shop->address ?: 'Dhaka',

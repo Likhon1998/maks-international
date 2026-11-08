@@ -109,16 +109,34 @@
                 </div>
             @endif
 
-            @if ($order->canDeliver())
+            @if ($order->fieldCanMarkDelivered(auth()->user()))
                 <form class="f-od-deliver" method="post" action="{{ route('field.orders.deliver', $order) }}"
                       onsubmit="return confirm('Mark this order as delivered?')">
                     @csrf
                     <div>
                         <strong>Deliver</strong>
-                        <span class="f-muted f-small">One step after approval. Collection stays separate.</span>
+                        <span class="f-muted f-small">Assigned to you. Or open the delivery for receive / quantities.</span>
                     </div>
-                    <button class="f-btn f-btn-primary f-btn-sm" type="submit">Mark delivered</button>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                        <button class="f-btn f-btn-primary f-btn-sm" type="submit">Mark delivered</button>
+                        @if ($order->delivery)
+                            <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.deliveries.show', $order->delivery) }}">Open delivery</a>
+                        @endif
+                    </div>
                 </form>
+            @elseif ($order->canDeliver())
+                <div class="f-od-deliver">
+                    <div>
+                        <strong>Delivery</strong>
+                        @if (! $order->delivery)
+                            <span class="f-muted f-small">Waiting for warehouse dispatch and admin assignment.</span>
+                        @elseif (! $order->delivery->assigned_to)
+                            <span class="f-muted f-small">Dispatched — waiting for admin to assign a delivery man.</span>
+                        @else
+                            <span class="f-muted f-small">Assigned to {{ $order->delivery->assignee?->name ?: 'another rider' }}. You can track the order here; delivery actions are on their panel.</span>
+                        @endif
+                    </div>
+                </div>
             @endif
 
             <section class="f-od-sheet">

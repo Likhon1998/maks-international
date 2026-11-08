@@ -147,16 +147,9 @@ class FulfilmentService
                 'dispatched_at' => now(),
             ]);
 
-            $assigneeId = $deliveryData['assigned_to']
-                ?? $order->salesman_id
-                ?? $shop->assigned_salesman_id
-                ?? null;
-
-            if (! $assigneeId) {
-                throw ValidationException::withMessages([
-                    'assigned_to' => 'Assign a salesman to deliver this order.',
-                ]);
-            }
+            // Manual assignment only — never fall back to order/shop salesman.
+            $assigneeId = ! empty($deliveryData['assigned_to']) ? (int) $deliveryData['assigned_to'] : null;
+            $status = $assigneeId ? Delivery::STATUS_ASSIGNED : Delivery::STATUS_PENDING;
 
             $delivery = Delivery::query()->create([
                 'number' => $this->nextDeliveryNumber(),
@@ -165,7 +158,8 @@ class FulfilmentService
                 'warehouse_id' => $fulfilment->warehouse_id,
                 'shop_id' => $shop->id,
                 'assigned_to' => $assigneeId,
-                'status' => Delivery::STATUS_OUT_FOR_DELIVERY,
+                'assigned_at' => $assigneeId ? now() : null,
+                'status' => $status,
                 'tracking_ref' => $deliveryData['tracking_ref'] ?? null,
                 'delivery_address' => $deliveryData['delivery_address'] ?? trim(($shop->address ?? '').', '.($shop->city ?? ''), ', '),
                 'notes' => $deliveryData['notes'] ?? null,
@@ -174,10 +168,6 @@ class FulfilmentService
             ]);
 
             $this->deliveryStock->seedItems($delivery);
-
-            if (! $order->salesman_id) {
-                $order->update(['salesman_id' => $assigneeId]);
-            }
 
             $from = $order->status;
             $order->update(['status' => Order::STATUS_DISPATCHED]);
@@ -211,9 +201,8 @@ class FulfilmentService
         }
 
         $note = $notes ?: 'Marked delivered';
-        $assignee = $assignedTo
-            ?: $order->salesman_id
-            ?: $order->shop?->assigned_salesman_id;
+        // Manual assignment only — never infer from order/shop salesman.
+        $assignee = $assignedTo ? (int) $assignedTo : null;
 
         if (in_array($fulfilment->status, [OrderFulfilment::STATUS_AWAITING_PICK, OrderFulfilment::STATUS_PICKING], true)) {
             $fulfilment = $this->completePick($fulfilment, $actor, $note);
@@ -225,14 +214,25 @@ class FulfilmentService
 
         $delivery = $order->delivery;
         if ($fulfilment->status === OrderFulfilment::STATUS_PACKED) {
+            if (! $assignee) {
+                throw ValidationException::withMessages([
+                    'assigned_to' => 'Select a delivery man before marking delivered.',
+                ]);
+            }
             $delivery = $this->dispatch($fulfilment, $actor, [
                 'notes' => $note,
                 'assigned_to' => $assignee,
             ]);
         } else {
             $delivery = $delivery ?: $order->fresh('delivery')->delivery;
-            if ($delivery && ! $delivery->assigned_to && $assignee) {
-                $delivery->update(['assigned_to' => $assignee]);
+            if ($delivery && ! $delivery->assigned_to) {
+                if (! $assignee) {
+                    throw ValidationException::withMessages([
+                        'assigned_to' => 'Select a delivery man before marking delivered.',
+                    ]);
+                }
+                $this->assignDeliveryMan($delivery, $assignee, $actor);
+                $delivery = $delivery->fresh();
             }
         }
 
@@ -340,6 +340,95 @@ class FulfilmentService
         });
     }
 
+    public function assignDeliveryMan(Delivery $delivery, int $assigneeId, User $actor, ?string $notes = null): Delivery
+    {
+        if ($delivery->status === Delivery::STATUS_DELIVERED) {
+            throw ValidationException::withMessages(['delivery' => 'Cannot reassign a completed delivery.']);
+        }
+
+        $assignee = User::query()->whereKey($assigneeId)->where('is_active', true)->first();
+        if (! $assignee) {
+            throw ValidationException::withMessages(['assigned_to' => 'Select an active delivery man.']);
+        }
+
+        return DB::transaction(function () use ($delivery, $assignee, $actor, $notes) {
+            $delivery = Delivery::query()->lockForUpdate()->findOrFail($delivery->id);
+            if ($delivery->status === Delivery::STATUS_DELIVERED) {
+                throw ValidationException::withMessages(['delivery' => 'Cannot reassign a completed delivery.']);
+            }
+
+            $wasUnassigned = ! $delivery->assigned_to;
+            $status = $delivery->status;
+            if (in_array($status, [Delivery::STATUS_PENDING, Delivery::STATUS_FAILED], true)) {
+                $status = Delivery::STATUS_ASSIGNED;
+            }
+
+            $delivery->update([
+                'assigned_to' => $assignee->id,
+                'assigned_at' => now(),
+                'status' => $status,
+                'notes' => $notes ?: $delivery->notes,
+            ]);
+
+            $verb = $wasUnassigned ? 'assigned' : 'reassigned';
+            $this->auditLogger->log(
+                'deliveries',
+                $verb,
+                "Delivery {$delivery->number} {$verb} to {$assignee->name}",
+                $delivery,
+                null,
+                null,
+                $actor,
+            );
+
+            return $delivery->fresh(['order', 'shop', 'assignee', 'fulfilment']);
+        });
+    }
+
+    public function markOutForDelivery(Delivery $delivery, User $actor, ?string $notes = null): Delivery
+    {
+        if ($delivery->status === Delivery::STATUS_DELIVERED) {
+            throw ValidationException::withMessages(['delivery' => 'Already delivered.']);
+        }
+
+        if ($delivery->status === Delivery::STATUS_OUT_FOR_DELIVERY) {
+            return $delivery->fresh(['order', 'shop', 'assignee', 'fulfilment']);
+        }
+
+        if (! $delivery->assigned_to) {
+            throw ValidationException::withMessages([
+                'assigned_to' => 'Assign a delivery man before marking out for delivery.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($delivery, $actor, $notes) {
+            $delivery = Delivery::query()->lockForUpdate()->findOrFail($delivery->id);
+
+            if (! $delivery->assigned_to) {
+                throw ValidationException::withMessages([
+                    'assigned_to' => 'Assign a delivery man before marking out for delivery.',
+                ]);
+            }
+
+            $delivery->update([
+                'status' => Delivery::STATUS_OUT_FOR_DELIVERY,
+                'notes' => $notes ?: $delivery->notes,
+            ]);
+
+            $this->auditLogger->log(
+                'deliveries',
+                'out_for_delivery',
+                "Delivery {$delivery->number} marked out for delivery",
+                $delivery,
+                null,
+                null,
+                $actor,
+            );
+
+            return $delivery->fresh(['order', 'shop', 'assignee', 'fulfilment']);
+        });
+    }
+
     public function markFailed(Delivery $delivery, User $actor, ?string $notes = null): Delivery
     {
         if ($delivery->status === Delivery::STATUS_DELIVERED) {
@@ -372,13 +461,15 @@ class FulfilmentService
         return DB::transaction(function () use ($delivery, $actor, $notes) {
             $delivery = Delivery::query()->lockForUpdate()->findOrFail($delivery->id);
             $delivery->update([
-                'status' => Delivery::STATUS_OUT_FOR_DELIVERY,
+                'status' => $delivery->assigned_to
+                    ? Delivery::STATUS_ASSIGNED
+                    : Delivery::STATUS_PENDING,
                 'notes' => $notes ?: $delivery->notes,
             ]);
 
-            $this->auditLogger->log('deliveries', 'retried', "Delivery {$delivery->number} sent out again", $delivery, null, null, $actor);
+            $this->auditLogger->log('deliveries', 'retried', "Delivery {$delivery->number} queued for retry", $delivery, null, null, $actor);
 
-            return $delivery->fresh(['order', 'shop', 'fulfilment']);
+            return $delivery->fresh(['order', 'shop', 'assignee', 'fulfilment']);
         });
     }
 

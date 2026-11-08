@@ -19,6 +19,8 @@ use Illuminate\Support\Carbon;
 
 class AnalyticsService
 {
+    public function __construct(private ReportService $reports) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -28,6 +30,11 @@ class AnalyticsService
         $monthEnd = now()->endOfMonth()->copy();
         $prevStart = now()->subMonth()->startOfMonth()->copy();
         $prevEnd = now()->subMonth()->endOfMonth()->copy();
+
+        $systemTotals = null;
+        if ($user?->isSuperAdmin()) {
+            $systemTotals = $this->reports->systemTotals();
+        }
 
         $salesThis = (float) Order::query()
             ->whereIn('status', [Order::STATUS_DELIVERED, Order::STATUS_DISPATCHED, Order::STATUS_PACKED, Order::STATUS_APPROVED, Order::STATUS_PICKED, Order::STATUS_PICKING])
@@ -160,6 +167,7 @@ class AnalyticsService
             'openInvoices' => Invoice::query()
                 ->when($user, fn ($q) => $q->whereHas('shop', fn ($s) => $s->visibleTo($user)))
                 ->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_PARTIAL])->count(),
+            'systemTotals' => $systemTotals,
         ];
     }
 

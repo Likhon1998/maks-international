@@ -134,10 +134,10 @@ class SiteController extends Controller
         try {
             $notifications->notifyAdmins(
                 'New partner application',
-                $inquiry->business_name.' · '.$inquiry->city,
-                '/admin/partner-leads',
+                $inquiry->business_name.' · '.($inquiry->city ?: 'No city').' · waiting for approval',
+                '/admin/partner-leads?status=pending',
                 'partners',
-                'info',
+                'warning',
             );
         } catch (\Throwable) {
             // non-blocking

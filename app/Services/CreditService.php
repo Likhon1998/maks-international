@@ -54,7 +54,7 @@ class CreditService
     {
         $returnCredits = (float) ProductReturn::query()
             ->where('shop_id', $shop->id)
-            ->where('status', ProductReturn::STATUS_APPROVED)
+            ->whereIn('status', [ProductReturn::STATUS_APPROVED, ProductReturn::STATUS_RESTOCKED])
             ->where('credit_issued', true)
             ->sum(DB::raw('total - applied_to_invoice'));
 
@@ -125,6 +125,41 @@ class CreditService
     public function syncAllShops(): void
     {
         Shop::query()->chunkById(50, function ($shops) {
+            foreach ($shops as $shop) {
+                $this->recalculateOutstanding($shop);
+            }
+        });
+    }
+
+    /**
+     * Recalculate shops that currently have open invoices or unapplied credits,
+     * or a non-zero outstanding that may be stale.
+     */
+    public function syncActiveDues(): void
+    {
+        $shopIds = Invoice::query()
+            ->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_PARTIAL])
+            ->distinct()
+            ->pluck('shop_id')
+            ->merge(
+                Payment::query()
+                    ->where('status', Payment::STATUS_VERIFIED)
+                    ->whereNull('invoice_id')
+                    ->distinct()
+                    ->pluck('shop_id')
+            )
+            ->merge(
+                Shop::query()->where('outstanding_balance', '>', 0)->pluck('id')
+            )
+            ->unique()
+            ->filter()
+            ->values();
+
+        if ($shopIds->isEmpty()) {
+            return;
+        }
+
+        Shop::query()->whereIn('id', $shopIds)->orderBy('id')->chunkById(50, function ($shops) {
             foreach ($shops as $shop) {
                 $this->recalculateOutstanding($shop);
             }

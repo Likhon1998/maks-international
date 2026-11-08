@@ -12,14 +12,20 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DueManagementService
 {
+    public function __construct(private CreditService $credit) {}
+
     /**
      * @param  array{shop?:string,salesman_id?:int|string,min_outstanding?:float|string,from?:string,to?:string}  $filters
      * @return Collection<int, array<string, mixed>>
      */
-    public function outstandingRows(array $filters = []): Collection
+    public function outstandingRows(array $filters = [], ?User $viewer = null): Collection
     {
+        // Repair stale denormalized balances before listing dues.
+        $this->credit->syncActiveDues();
+
         $query = Shop::query()
             ->with(['assignedSalesman'])
+            ->when($viewer, fn ($q) => $q->visibleTo($viewer))
             ->where('outstanding_balance', '>', 0)
             ->orderByDesc('outstanding_balance');
 
@@ -40,6 +46,24 @@ class DueManagementService
             $query->where('outstanding_balance', '>=', (float) $filters['min_outstanding']);
         }
 
+        // Date range limits which shops appear: shops with invoice or collection activity in the period,
+        // while Outstanding still shows the current open balance for those shops.
+        if (! empty($filters['from']) || ! empty($filters['to'])) {
+            $from = $filters['from'] ?? null;
+            $to = $filters['to'] ?? null;
+            $query->where(function ($q) use ($from, $to) {
+                $q->whereHas('invoices', function ($invoice) use ($from, $to) {
+                    $invoice->whereNotIn('status', [Invoice::STATUS_DRAFT, Invoice::STATUS_VOID])
+                        ->when($from, fn ($iq) => $iq->whereDate('issued_at', '>=', $from))
+                        ->when($to, fn ($iq) => $iq->whereDate('issued_at', '<=', $to));
+                })->orWhereHas('payments', function ($payment) use ($from, $to) {
+                    $payment->where('status', Payment::STATUS_VERIFIED)
+                        ->when($from, fn ($pq) => $pq->whereDate('verified_at', '>=', $from))
+                        ->when($to, fn ($pq) => $pq->whereDate('verified_at', '<=', $to));
+                });
+            });
+        }
+
         $shops = $query->get();
 
         $shopIds = $shops->pluck('id');
@@ -48,6 +72,7 @@ class DueManagementService
             ->whereIn('shop_id', $shopIds)
             ->where('status', Payment::STATUS_VERIFIED)
             ->orderByDesc('verified_at')
+            ->orderByDesc('id')
             ->get()
             ->unique('shop_id')
             ->keyBy('shop_id');
@@ -58,6 +83,14 @@ class DueManagementService
             ->selectRaw('shop_id, MIN(COALESCE(due_at, issued_at, created_at)) as oldest_at')
             ->groupBy('shop_id')
             ->pluck('oldest_at', 'shop_id');
+
+        $openInvoiceTotals = Invoice::query()
+            ->whereIn('shop_id', $shopIds)
+            ->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_PARTIAL])
+            ->selectRaw('shop_id, SUM(balance) as open_balance, COUNT(*) as open_count')
+            ->groupBy('shop_id')
+            ->get()
+            ->keyBy('shop_id');
 
         $salesTotals = Invoice::query()
             ->whereIn('shop_id', $shopIds)
@@ -77,9 +110,10 @@ class DueManagementService
             ->groupBy('shop_id')
             ->pluck('collected', 'shop_id');
 
-        return $shops->map(function (Shop $shop) use ($lastPayments, $oldestOpen, $salesTotals, $collectionTotals) {
+        return $shops->map(function (Shop $shop) use ($lastPayments, $oldestOpen, $salesTotals, $collectionTotals, $openInvoiceTotals) {
             $last = $lastPayments->get($shop->id);
             $oldest = $oldestOpen->get($shop->id);
+            $open = $openInvoiceTotals->get($shop->id);
             $days = 0;
             if ($oldest) {
                 $days = (int) \Illuminate\Support\Carbon::parse($oldest)->startOfDay()->diffInDays(now()->startOfDay());
@@ -89,6 +123,8 @@ class DueManagementService
                 'shop' => $shop,
                 'salesman' => $shop->assignedSalesman,
                 'outstanding' => (float) $shop->outstanding_balance,
+                'open_invoice_balance' => (float) ($open->open_balance ?? 0),
+                'open_invoice_count' => (int) ($open->open_count ?? 0),
                 'last_payment_amount' => $last ? (float) $last->amount : 0.0,
                 'last_payment_date' => $last?->verified_at,
                 'days_outstanding' => $days,
@@ -130,7 +166,7 @@ class DueManagementService
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, [
-                'Shop code', 'Shop name', 'Salesman', 'Outstanding', 'Last payment', 'Last payment date',
+                'Shop code', 'Shop name', 'Salesman', 'Outstanding', 'Open invoices', 'Last payment', 'Last payment date',
                 'Days outstanding', 'Total sales', 'Total collections',
             ]);
             foreach ($rows as $row) {
@@ -139,6 +175,7 @@ class DueManagementService
                     $row['shop']->name,
                     $row['salesman']?->name ?? 'Unassigned',
                     number_format($row['outstanding'], 2, '.', ''),
+                    (int) ($row['open_invoice_count'] ?? 0),
                     number_format($row['last_payment_amount'], 2, '.', ''),
                     $row['last_payment_date']?->format('Y-m-d') ?? '',
                     $row['days_outstanding'],

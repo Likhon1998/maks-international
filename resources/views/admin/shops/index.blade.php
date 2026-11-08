@@ -82,19 +82,14 @@
                                     <span class="badge" :class="row.has_login ? 'badge-active' : 'badge-pending'" x-text="row.has_login ? 'Has login' : 'No login'"></span>
                                 </td>
                                 <td class="actions">
-                                    <div class="row-menu" x-data="{ open: false }" @keydown.escape.window="open = false">
-                                        <button type="button" class="row-menu-btn" @click="open = !open" :aria-expanded="open.toString()" aria-haspopup="menu" title="Actions">
-                                            <span aria-hidden="true">⋯</span>
-                                        </button>
-                                        <div class="row-menu-panel" role="menu" x-cloak x-show="open" @click.outside="open = false">
-                                            <a class="row-menu-item" :href="row.url" @click="open = false">View</a>
-                                            <template x-if="row.can_approve && row.approve_url">
-                                                <form :action="row.approve_url" method="post">
-                                                    @csrf
-                                                    <button class="row-menu-item" type="submit">Approve</button>
-                                                </form>
-                                            </template>
-                                        </div>
+                                    <div class="shop-row-actions">
+                                        <template x-if="row.can_approve && row.approve_url">
+                                            <form :action="row.approve_url" method="post">
+                                                @csrf
+                                                <button class="btn btn-primary btn-sm" type="submit">Approve</button>
+                                            </form>
+                                        </template>
+                                        <a class="btn btn-ghost btn-sm" :href="row.url">View</a>
                                     </div>
                                 </td>
                             </tr>

@@ -273,8 +273,11 @@ Route::prefix('admin')->group(function () {
         Route::post('/fulfilment/{fulfilment}/deliver', [FulfilmentController::class, 'markDelivered'])->name('fulfilment.deliver');
 
         Route::get('/deliveries', [DeliveryController::class, 'index'])->name('deliveries.index');
+        Route::get('/deliveries/men', [DeliveryController::class, 'men'])->name('deliveries.men');
         Route::get('/deliveries/{delivery}', [DeliveryController::class, 'show'])->name('deliveries.show');
         Route::get('/deliveries/{delivery}/challan', [DeliveryController::class, 'challan'])->name('deliveries.challan');
+        Route::post('/deliveries/{delivery}/assign', [DeliveryController::class, 'assign'])->name('deliveries.assign');
+        Route::post('/deliveries/{delivery}/out', [DeliveryController::class, 'markOutForDelivery'])->name('deliveries.out');
         Route::post('/deliveries/{delivery}/deliver', [DeliveryController::class, 'markDelivered'])->name('deliveries.deliver');
         Route::post('/deliveries/{delivery}/fail', [DeliveryController::class, 'markFailed'])->name('deliveries.fail');
         Route::post('/deliveries/{delivery}/retry', [DeliveryController::class, 'retry'])->name('deliveries.retry');
@@ -315,6 +318,7 @@ Route::prefix('admin')->group(function () {
         Route::post('/returns', [ReturnController::class, 'store'])->name('returns.store');
         Route::get('/returns/{productReturn}', [ReturnController::class, 'show'])->name('returns.show');
         Route::post('/returns/{productReturn}/approve', [ReturnController::class, 'approve'])->name('returns.approve');
+        Route::post('/returns/{productReturn}/restock', [ReturnController::class, 'restock'])->name('returns.restock');
         Route::post('/returns/{productReturn}/reject', [ReturnController::class, 'reject'])->name('returns.reject');
 
         // Phase 8 — Targets, commissions, rewards

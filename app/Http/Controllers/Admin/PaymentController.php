@@ -142,7 +142,8 @@ class PaymentController extends Controller
                 ->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))
                 ->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_PARTIAL])
                 ->with(['shop:id,name', 'order:id,number,advance_invoice_id'])
-                ->latest()
+                ->orderByRaw('COALESCE(due_at, issued_at, created_at)')
+                ->orderBy('id')
                 ->get(),
             'prefillInvoiceId' => $request->integer('invoice_id') ?: null,
             'prefillShopId' => $request->integer('shop_id') ?: null,

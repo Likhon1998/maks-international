@@ -13,7 +13,10 @@ use Illuminate\Validation\ValidationException;
 
 class DeliveryStockService
 {
-    public function __construct(private InventoryService $inventory) {}
+    public function __construct(
+        private InventoryService $inventory,
+        private ReturnService $returns,
+    ) {}
 
     public function seedItems(Delivery $delivery): void
     {
@@ -150,33 +153,31 @@ class DeliveryStockService
                 ]);
             }
 
-            // Inventory left the warehouse at pick time for ordered qty.
-            // Delivered qty stays out. Remaining with salesman is tracked on the line.
-            // Optional auto-return of leftovers when completing the delivery:
-            if ($complete) {
-                foreach ($delivery->fresh('items.product')->items as $item) {
-                    $left = $item->qtyRemaining();
-                    if ($left <= 0 || ! $item->product || ! $delivery->warehouse) {
-                        continue;
-                    }
-                    // Keep leftovers with the salesman (do not auto-restock) — requirement #5.
-                }
-            }
+            // Leftovers stay with the salesman until delivery is completed; then they become
+            // a pending Product Return (inventory only after admin/manager restock approval).
 
             return $delivery->fresh(['items.product', 'assignee', 'shop', 'order']);
         });
     }
 
     /**
-     * Return remaining (or partial) salesman stock to the warehouse.
+     * Submit remaining salesman stock as a pending product return (no inventory change yet).
      *
      * @param  array<int, array{id:int, qty:int}>  $lines
      */
     public function returnToWarehouse(Delivery $delivery, array $lines, User $actor): Delivery
     {
         return DB::transaction(function () use ($delivery, $lines, $actor) {
-            $delivery = Delivery::query()->lockForUpdate()->with(['items.product', 'warehouse'])->findOrFail($delivery->id);
+            $delivery = Delivery::query()->lockForUpdate()->with(['items.product', 'order.items', 'warehouse'])->findOrFail($delivery->id);
+            $order = $delivery->order;
+            if (! $order || $order->status !== \App\Models\Order::STATUS_DELIVERED) {
+                throw ValidationException::withMessages([
+                    'delivery' => 'Finish delivering to the shop first, then submit unsold stock as a return.',
+                ]);
+            }
+
             $byId = collect($lines)->keyBy(fn ($row) => (int) $row['id']);
+            $quantities = [];
 
             foreach ($delivery->items as $item) {
                 $qty = (int) ($byId[$item->id]['qty'] ?? 0);
@@ -188,18 +189,28 @@ class DeliveryStockService
                         'qty' => "{$item->product_name}: only {$item->qtyRemaining()} left with the salesman.",
                     ]);
                 }
-
-                if ($item->product && $delivery->warehouse) {
-                    $this->inventory->receive(
-                        $delivery->warehouse,
-                        $item->product,
-                        $qty,
-                        $actor,
-                        "Returned from {$delivery->number}",
-                        $delivery->number,
-                    );
+                if (! $item->product_id) {
+                    continue;
                 }
+                $quantities[(int) $item->product_id] = ($quantities[(int) $item->product_id] ?? 0) + $qty;
+            }
 
+            if ($quantities === []) {
+                throw ValidationException::withMessages(['items' => 'Enter at least one quantity to return.']);
+            }
+
+            $this->returns->createFromOrder($order->fresh('items'), $quantities, [
+                'delivery_id' => $delivery->id,
+                'reason_type' => \App\Models\ProductReturn::REASON_NOT_ACCEPTED,
+                'reason' => 'Salesman submitted unsold stock from delivery '.$delivery->number.' for return verification.',
+                'restock' => true,
+            ], $actor);
+
+            foreach ($delivery->items as $item) {
+                $qty = (int) ($byId[$item->id]['qty'] ?? 0);
+                if ($qty <= 0) {
+                    continue;
+                }
                 $item->update([
                     'qty_returned' => (int) $item->qty_returned + $qty,
                 ]);
