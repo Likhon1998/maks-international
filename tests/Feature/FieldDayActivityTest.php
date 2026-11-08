@@ -95,6 +95,7 @@ class FieldDayActivityTest extends TestCase
                 'redirect' => 'dashboard',
                 'notes' => 'Checked stock, owner will order later.',
                 'photo' => UploadedFile::fake()->image('old-shop.jpg', 640, 480),
+                'photo_captured' => '1',
             ])
             ->assertRedirect(route('field.dashboard'));
 
@@ -146,7 +147,7 @@ class FieldDayActivityTest extends TestCase
             ->get(route('field.visit.show', ['visit' => $visit, 'leave' => 1]))
             ->assertOk()
             ->assertSee('What did you talk about with the owner?')
-            ->assertSee('Take a photo at this shop');
+            ->assertSee('Take a live photo at this shop');
 
         $this->actingAs($salesman)
             ->post(route('field.visit.leave', $visit), [
@@ -161,6 +162,7 @@ class FieldDayActivityTest extends TestCase
                 'redirect' => 'dashboard',
                 'notes' => 'Discussed last bill and next week stock.',
                 'photo' => UploadedFile::fake()->image('evidence.jpg', 800, 600),
+                'photo_captured' => '1',
             ])
             ->assertRedirect(route('field.dashboard'));
 

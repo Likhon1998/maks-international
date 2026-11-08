@@ -267,6 +267,7 @@ class FieldPortalController extends Controller
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'photo_captured' => ['nullable', 'in:1'],
             'login_email' => [$createLogin ? 'required' : 'nullable', 'email', 'max:180'],
             'login_password' => [$createLogin ? 'required' : 'nullable', 'string', 'min:8', 'max:64'],
         ], [
@@ -274,6 +275,8 @@ class FieldPortalController extends Controller
             'login_password.required' => 'Set a password the owner can use to sign in.',
             'login_password.min' => 'Use at least 8 characters so the account is safe.',
         ]);
+
+        $this->assertLiveCameraPhoto($request);
 
         if (! empty($data['phone'])) {
             $data['phone'] = BangladeshPhone::normalize($data['phone']);
@@ -1125,6 +1128,22 @@ class FieldPortalController extends Controller
         abort_unless((int) $delivery->assigned_to === (int) $user->id, 403);
     }
 
+    /** Field evidence photos must come from the live-camera capture UI, not the gallery. */
+    private function assertLiveCameraPhoto(Request $request): void
+    {
+        if (! $request->hasFile('photo')) {
+            return;
+        }
+
+        if ($request->input('photo_captured') === '1') {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'photo' => 'Gallery photos are blocked. Capture a live photo with the camera.',
+        ]);
+    }
+
     public function announcements(Request $request)
     {
         $user = $request->user();
@@ -1337,11 +1356,16 @@ class FieldPortalController extends Controller
             'outcome' => ['nullable', 'in:order_taken,no_order,closed,follow_up'],
             'notes' => ['required', 'string', 'max:1000'],
             'photo' => [$needsPhoto ? 'required' : 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'photo_captured' => [$needsPhoto || $request->hasFile('photo') ? 'required' : 'nullable', 'in:1'],
         ], [
             'notes.required' => 'Write what you talked about with the owner.',
-            'photo.required' => 'Take a photo at the shop as visit evidence.',
+            'photo.required' => 'Take a live camera photo at the shop as visit evidence.',
             'photo.image' => 'Visit evidence must be a photo.',
+            'photo_captured.required' => 'Gallery photos are blocked. Capture a live photo with the camera.',
+            'photo_captured.in' => 'Gallery photos are blocked. Capture a live photo with the camera.',
         ]);
+
+        $this->assertLiveCameraPhoto($request);
 
         $photoPath = $visit->photo_path;
         if ($file = $request->file('photo')) {

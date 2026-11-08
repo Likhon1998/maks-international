@@ -480,6 +480,7 @@ class WorkflowSmokeTest extends TestCase
             'outcome' => 'no_order',
             'notes' => 'Owner away',
             'photo' => UploadedFile::fake()->image('visit.jpg', 640, 480),
+            'photo_captured' => '1',
         ]), 'check out without order');
         $this->assertFalse($second->fresh()->isOpen());
     }
@@ -518,6 +519,7 @@ class WorkflowSmokeTest extends TestCase
             'outcome' => 'follow_up',
             'notes' => 'Interested',
             'photo' => UploadedFile::fake()->image('shop.jpg', 640, 480),
+            'photo_captured' => '1',
         ]), 'end visit');
 
         $this->post(route('field.shops.store'), [

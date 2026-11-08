@@ -1,19 +1,12 @@
 @php
     $needsPhoto = $visit->needsPhotoEvidence();
     $leaveTo = request('to', $leaveRedirect ?? 'shops');
-    $openLeave = request()->boolean('leave') || $errors->has('notes') || $errors->has('photo');
+    $openLeave = request()->boolean('leave') || $errors->has('notes') || $errors->has('photo') || $errors->has('photo_captured');
 @endphp
 <div
     x-data="{
         open: {{ $openLeave ? 'true' : 'false' }},
-        preview: '',
         redirect: @js($leaveTo),
-        pick(event) {
-            const file = event.target.files?.[0];
-            if (this.preview) URL.revokeObjectURL(this.preview);
-            this.preview = file ? URL.createObjectURL(file) : '';
-            this.$nextTick(() => window.lucide && lucide.createIcons());
-        }
     }"
     @open-leave.window="open = true; if ($event.detail) redirect = $event.detail; $nextTick(() => document.getElementById('leave-notes')?.focus())"
 >
@@ -40,19 +33,15 @@
         <textarea id="leave-notes" class="f-textarea @error('notes') is-invalid @enderror" name="notes" rows="3" maxlength="1000" required placeholder="e.g. asked about charger stock, will order next week, owner was busy…">{{ old('notes', $visit->notes) }}</textarea>
         @error('notes')<div class="f-error">{{ $message }}</div>@enderror
 
-        <label class="f-photo {{ $needsPhoto ? 'is-required' : '' }}">
-            <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" capture="environment" @change="pick($event)" {{ $needsPhoto ? 'required' : '' }}>
-            <span class="f-photo-box" x-show="!preview">
-                <i data-lucide="camera"></i>
-                <b>{{ $needsPhoto ? 'Take a photo at this shop' : 'Photo of the visit (optional)' }}</b>
-                <small>{{ $needsPhoto ? 'Required — this shop is on your assigned route.' : 'Office can see you were here.' }}</small>
-            </span>
-            <span class="f-photo-box has-img" x-show="preview" x-cloak>
-                <img :src="preview" alt="Visit evidence">
-                <small>Tap to retake</small>
-            </span>
-        </label>
+        <x-live-camera-photo
+            name="photo"
+            :required="$needsPhoto"
+            :title="$needsPhoto ? 'Take a live photo at this shop' : 'Live photo of the visit (optional)'"
+            :hint="$needsPhoto ? 'Required reality check — camera only, gallery blocked.' : 'Camera only — gallery photos are blocked.'"
+            class="f-cam-block"
+        />
         @error('photo')<div class="f-error">{{ $message }}</div>@enderror
+        @error('photo_captured')<div class="f-error">{{ $message }}</div>@enderror
 
         <button class="f-btn f-btn-primary f-btn-lg f-btn-block" style="margin-top:14px" type="submit"><i data-lucide="log-out"></i> Save visit &amp; leave</button>
         <button class="f-btn f-btn-ghost f-btn-block" style="margin-top:8px" type="button" @click="open = false">Stay at this shop</button>

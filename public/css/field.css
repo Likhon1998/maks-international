@@ -238,7 +238,7 @@ a.f-kpi:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -14px var(-
 .f-today-row small { display: block; font-size: 11.5px; color: var(--f-muted); margin-top: 1px; }
 .f-today-row small.note { color: var(--f-text); }
 
-.f-photo { display: block; cursor: pointer; }
+.f-photo { display: block; cursor: pointer; position: relative; }
 .f-photo input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
 .f-photo-box { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 120px; border: 1.5px dashed var(--f-line); border-radius: 12px; background: #FAF9FD; text-align: center; padding: 14px; color: var(--f-muted); }
 .f-photo-box .lucide { width: 22px; height: 22px; color: var(--f-brand); }
@@ -247,8 +247,60 @@ a.f-kpi:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -14px var(-
 .f-photo-box.has-img { padding: 0; overflow: hidden; min-height: 160px; border-style: solid; }
 .f-photo-box.has-img img { width: 100%; height: 160px; object-fit: cover; display: block; }
 .f-photo-box.has-img small { position: absolute; bottom: 8px; background: rgba(20,18,30,.7); color: #fff; padding: 2px 8px; border-radius: 99px; }
-.f-photo { position: relative; }
 .f-photo.is-required .f-photo-box { border-color: #FCD9AE; background: #FFF9F2; }
+
+.f-cam { position: relative; margin-top: 4px; }
+.f-cam-block { margin-top: 12px; }
+.f-cam-file { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+.f-cam-launch {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 120px;
+    border: 1.5px dashed var(--f-line);
+    border-radius: 12px;
+    background: #FAF9FD;
+    text-align: center;
+    padding: 14px;
+    color: var(--f-muted);
+    cursor: pointer;
+}
+.f-cam.is-required .f-cam-launch { border-color: #FCD9AE; background: #FFF9F2; }
+.f-cam-launch .lucide { width: 22px; height: 22px; color: var(--f-brand); }
+.f-cam-launch b { color: var(--f-ink); font-size: 13px; }
+.f-cam-launch small { font-size: 11.5px; line-height: 1.35; max-width: 30ch; }
+.f-cam-stage, .f-cam-preview {
+    border: 1px solid var(--f-line);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #111;
+}
+.f-cam-video, .f-cam-preview img {
+    display: block;
+    width: 100%;
+    max-height: 280px;
+    object-fit: cover;
+    background: #000;
+}
+.f-cam-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 10px;
+    background: #fff;
+}
+.f-cam-err {
+    margin: 0;
+    padding: 8px 10px 10px;
+    color: #b91c1c;
+    font-size: 12.5px;
+    background: #fff;
+    text-align: center;
+}
 
 @media (min-width: 720px) {
     .f-today-grid { grid-template-columns: 1fr 1fr; gap: 18px; }

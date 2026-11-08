@@ -163,19 +163,16 @@
                         <textarea class="f-textarea @error('notes') is-invalid @enderror" name="notes" rows="2" maxlength="1000" placeholder="e.g. they want chargers next week, asked about credit, shop was busy…">{{ old('notes') }}</textarea>
                         @error('notes')<span class="f-error">{{ $message }}</span>@enderror
                     </label>
-                    <label class="f-photo" style="margin-top:14px" x-data="{ preview: '' }">
-                        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" capture="environment" @change="preview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : ''">
-                        <span class="f-photo-box" x-show="!preview">
-                            <i data-lucide="camera"></i>
-                            <b>Photo of the shop</b>
-                            <small>Shopfront evidence for the office — not a visit.</small>
-                        </span>
-                        <span class="f-photo-box has-img" x-show="preview" x-cloak>
-                            <img :src="preview" alt="Shop photo">
-                            <small>Tap to retake</small>
-                        </span>
-                    </label>
-                    @error('photo')<span class="f-error">{{ $message }}</span>@enderror
+                    <div style="margin-top:14px">
+                        <x-live-camera-photo
+                            name="photo"
+                            :required="false"
+                            title="Take a live shopfront photo"
+                            hint="Camera only — gallery photos are blocked for reality check."
+                        />
+                        @error('photo')<span class="f-error">{{ $message }}</span>@enderror
+                        @error('photo_captured')<span class="f-error">{{ $message }}</span>@enderror
+                    </div>
                 </div>
             </section>
             </div>

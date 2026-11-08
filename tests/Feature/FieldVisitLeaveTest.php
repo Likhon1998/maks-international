@@ -61,7 +61,17 @@ class FieldVisitLeaveTest extends TestCase
                 'outcome' => ShopVisit::OUTCOME_NO_ORDER,
                 'redirect' => 'shops',
                 'notes' => 'Talked about charger stock, owner will order next week.',
+                'photo' => UploadedFile::fake()->image('gallery.jpg', 640, 480),
+            ])
+            ->assertSessionHasErrors(['photo_captured']);
+
+        $this->actingAs($salesman)
+            ->post(route('field.visit.leave', $visit), [
+                'outcome' => ShopVisit::OUTCOME_NO_ORDER,
+                'redirect' => 'shops',
+                'notes' => 'Talked about charger stock, owner will order next week.',
                 'photo' => UploadedFile::fake()->image('visit.jpg', 640, 480),
+                'photo_captured' => '1',
             ])
             ->assertRedirect(route('field.shops'))
             ->assertSessionHas('success');
