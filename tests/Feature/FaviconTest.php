@@ -34,6 +34,16 @@ class FaviconTest extends TestCase
         $this->get('/favicon.ico')->assertOk();
     }
 
+    public function test_header_and_footer_use_the_full_logo_not_the_favicon_crop(): void
+    {
+        $html = $this->get(route('site.home'))->assertOk()->getContent();
+        $logo = asset('images/logo.png');
+
+        $this->assertSame(2, substr_count($html, 'src="'.e($logo).'"'));
+        $this->assertStringNotContainsString('src="'.route('favicon.png', ['size' => 32]), $html);
+        $this->assertStringNotContainsString('src="'.route('favicon.png', ['size' => 48]), $html);
+    }
+
     public function test_uploaded_website_logo_becomes_the_favicon(): void
     {
         Storage::fake('public');

@@ -184,12 +184,16 @@ button, input, select, textarea { font-family: inherit; }
     display: block;
     object-fit: contain;
     flex-shrink: 0;
-    filter: drop-shadow(0 8px 18px rgba(126, 34, 206, 0.45));
+    background: #fff;
+    border-radius: 50%;
+    padding: 2px;
+    box-sizing: content-box;
 }
 
 .sidebar-brand .brand-logo img {
     width: 32px !important;
     height: 32px !important;
+    padding: 3px;
 }
 
 .sidebar-brand .brand-wordmark {

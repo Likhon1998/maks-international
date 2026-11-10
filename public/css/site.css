@@ -112,7 +112,10 @@ h1, h2, h3, h4 {
     height: 40px;
     object-fit: contain;
     flex-shrink: 0;
-    background: transparent;
+    background: #fff;
+    border-radius: 50%;
+    padding: 2px;
+    box-sizing: content-box;
 }
 .brand-wordmark {
     font-size: 1.05rem;
@@ -570,7 +573,12 @@ h1, h2, h3, h4 {
 }
 .site-footer .brand-logo,
 .site-footer .brand-wordmark { color: #fff; }
-.site-footer .brand-logo img { width: 36px; height: 36px; }
+.site-footer .brand-logo img {
+    width: 40px;
+    height: 40px;
+    padding: 4px;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
 .site-footer-grid {
     display: grid;
     grid-template-columns: 1.6fr 1fr 1fr 1.2fr;

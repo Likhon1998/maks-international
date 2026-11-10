@@ -7,7 +7,7 @@
 
 <span {{ $attributes->class('brand-logo') }}>
     <img
-        src="{{ $brand->logoMarkUrl((int) $size) }}"
+        src="{{ $brand->logoUrl() }}"
         alt="{{ $brand->siteName() }}"
         width="{{ $size }}"
         height="{{ $size }}"
