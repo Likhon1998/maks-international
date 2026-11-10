@@ -2,7 +2,7 @@
 @section('title', 'Products')
 @section('content')
     <x-page-header title="Products" subtitle="Catalogue" action="{{ route('products.create') }}" action-label="Add Product">
-        <x-slot:description>Shops see only their price-group wholesale rate. Cost and landed cost stay admin-only.</x-slot:description>
+        <x-slot:description>Shops see only their price-group wholesale rate. China purchase, shipping and total cost stay admin-only.</x-slot:description>
         <a class="btn btn-ghost" href="{{ route('price-groups.index') }}">Price groups</a>
     </x-page-header>
 

@@ -198,20 +198,70 @@
                         <input class="input" type="number" step="0.01" name="minimum_selling_price" value="{{ old('minimum_selling_price', $product?->minimum_selling_price ?? 0) }}">
                     </span>
                 </label>
-                <label class="pd-money">
-                    <span>Cost</span>
-                    <span class="pd-money-box">
-                        <em>৳</em>
-                        <input class="input" type="number" step="0.01" name="cost_price" value="{{ old('cost_price', $product?->cost_price ?? 0) }}">
-                    </span>
-                </label>
-                <label class="pd-money">
-                    <span>Landed cost</span>
-                    <span class="pd-money-box">
-                        <em>৳</em>
-                        <input class="input" type="number" step="0.01" name="landed_cost" value="{{ old('landed_cost', $product?->landed_cost ?? 0) }}">
-                    </span>
-                </label>
+            </div>
+
+            @php
+                $chinaCost = (float) old('china_purchase_price', $product?->china_purchase_price ?? 0);
+                $shippingCost = (float) old('shipping_cost', $product?->shipping_cost ?? 0);
+                $totalCost = (float) old('cost_price', $product?->cost_price ?? 0);
+                $legacyCost = $product && $chinaCost == 0.0 && $shippingCost == 0.0 && $totalCost > 0;
+                $autoTotal = old('auto_total_cost', $legacyCost ? '0' : '1') == '1';
+            @endphp
+            <div
+                class="pd-groups"
+                x-data="{
+                    china: {{ $chinaCost }},
+                    shipping: {{ $shippingCost }},
+                    auto: {{ $autoTotal ? 'true' : 'false' }},
+                    total: {{ $autoTotal ? round($chinaCost + $shippingCost, 2) : $totalCost }},
+                    sync() {
+                        if (this.auto) {
+                            this.total = Math.round((Number(this.china || 0) + Number(this.shipping || 0)) * 100) / 100;
+                        }
+                    }
+                }"
+            >
+                <h3>Import cost</h3>
+                <p class="muted" style="margin:0 0 10px;font-size:12px">Total Cost = Shipping Cost + China Purchase Price</p>
+                <div class="pd-money-grid">
+                    <label class="pd-money">
+                        <span>China purchase price</span>
+                        <span class="pd-money-box">
+                            <em>৳</em>
+                            <input class="input" type="number" step="0.01" min="0" name="china_purchase_price" x-model.number="china" @input="sync()">
+                        </span>
+                    </label>
+                    <label class="pd-money">
+                        <span>Shipping cost</span>
+                        <span class="pd-money-box">
+                            <em>৳</em>
+                            <input class="input" type="number" step="0.01" min="0" name="shipping_cost" x-model.number="shipping" @input="sync()">
+                        </span>
+                    </label>
+                    <label class="pd-switch is-wide" style="margin:0">
+                        <input type="hidden" name="auto_total_cost" value="0">
+                        <input type="checkbox" name="auto_total_cost" value="1" x-model="auto" @change="sync()">
+                        <span class="pd-switch-ui" aria-hidden="true"></span>
+                        <span>
+                            <b>Calculate total cost automatically</b>
+                            <small>Adds shipping cost and China purchase price</small>
+                        </span>
+                    </label>
+                    <label class="pd-money">
+                        <span>Total cost</span>
+                        <span class="pd-money-box">
+                            <em>৳</em>
+                            <input class="input" type="number" step="0.01" min="0" name="cost_price" x-model.number="total" :readonly="auto">
+                        </span>
+                    </label>
+                    <label class="pd-money">
+                        <span>Landed cost</span>
+                        <span class="pd-money-box">
+                            <em>৳</em>
+                            <input class="input" type="number" step="0.01" name="landed_cost" value="{{ old('landed_cost', $product?->landed_cost ?? 0) }}">
+                        </span>
+                    </label>
+                </div>
             </div>
 
             @can('products.manage_price')

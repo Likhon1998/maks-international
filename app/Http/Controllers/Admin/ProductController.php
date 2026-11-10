@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 class ProductController extends Controller
 {
     private const PRICE_FIELDS = [
-        'cost_price', 'landed_cost', 'wholesale_price', 'dealer_price',
+        'cost_price', 'china_purchase_price', 'shipping_cost', 'landed_cost', 'wholesale_price', 'dealer_price',
         'distributor_price', 'retail_price', 'minimum_selling_price',
     ];
 
@@ -151,6 +151,8 @@ class ProductController extends Controller
             'remove_images.*' => ['integer'],
             'primary_image_id' => ['nullable', 'integer'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'china_purchase_price' => ['nullable', 'numeric', 'min:0'],
+            'shipping_cost' => ['nullable', 'numeric', 'min:0'],
             'landed_cost' => ['nullable', 'numeric', 'min:0'],
             'wholesale_price' => ['required', 'numeric', 'min:0'],
             'dealer_price' => ['nullable', 'numeric', 'min:0'],
@@ -166,6 +168,13 @@ class ProductController extends Controller
         ]);
 
         $data['is_published'] = $request->boolean('is_published', true);
+        $data['china_purchase_price'] = round((float) ($data['china_purchase_price'] ?? 0), 2);
+        $data['shipping_cost'] = round((float) ($data['shipping_cost'] ?? 0), 2);
+        if ($request->boolean('auto_total_cost', true)) {
+            $data['cost_price'] = round($data['china_purchase_price'] + $data['shipping_cost'], 2);
+        } else {
+            $data['cost_price'] = round((float) ($data['cost_price'] ?? 0), 2);
+        }
 
         return $data;
     }

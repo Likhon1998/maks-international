@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\ProductReturn;
 use App\Models\Shop;
 use App\Models\User;
+use App\Support\Warranty;
 use App\Notifications\SystemAlert;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
@@ -231,6 +232,50 @@ class AppNotificationService
                 "{$pendingReturns} return(s) awaiting review",
                 'Approve to issue credit and optional restock.',
                 '/admin/returns?status=pending',
+                'returns',
+                'warning',
+            );
+            $count++;
+        }
+
+        $pendingWarranty = ProductReturn::query()
+            ->where('status', ProductReturn::STATUS_PENDING)
+            ->where('reason_type', ProductReturn::REASON_WARRANTY)
+            ->count();
+        if ($pendingWarranty > 0) {
+            $this->notifyAdmins(
+                "{$pendingWarranty} warranty claim(s) need review before expiry",
+                'Check Returns & warranty for claims still inside the product warranty window.',
+                '/admin/returns?kind=warranty&status=pending',
+                'returns',
+                'warning',
+            );
+            $count++;
+        }
+
+        $expiringSoon = ProductReturn::query()
+            ->with(['items.product', 'order'])
+            ->whereIn('status', [ProductReturn::STATUS_PENDING, ProductReturn::STATUS_APPROVED])
+            ->where('reason_type', ProductReturn::REASON_WARRANTY)
+            ->latest('id')
+            ->limit(80)
+            ->get()
+            ->sum(function (ProductReturn $return) {
+                $start = $return->order?->submitted_at;
+                foreach ($return->items as $item) {
+                    $expiry = Warranty::expiresAt($item->product?->warranty, $start);
+                    if ($expiry && $expiry->between(now(), now()->addDays(30))) {
+                        return 1;
+                    }
+                }
+
+                return 0;
+            });
+        if ($expiringSoon > 0) {
+            $this->notifyAdmins(
+                "{$expiringSoon} warranty claim(s) expire within 30 days",
+                'Review replacement or repair before coverage ends.',
+                '/admin/returns?kind=warranty',
                 'returns',
                 'warning',
             );

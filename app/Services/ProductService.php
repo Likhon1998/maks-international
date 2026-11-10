@@ -27,7 +27,7 @@ class ProductService
             $product = Product::query()->create([
                 ...collect($data)->only([
                     'name', 'sku', 'barcode', 'category_id', 'brand_id', 'model', 'variant',
-                    'description', 'image_path', 'cost_price', 'landed_cost', 'wholesale_price',
+                    'description', 'image_path', 'cost_price', 'china_purchase_price', 'shipping_cost', 'landed_cost', 'wholesale_price',
                     'dealer_price', 'distributor_price', 'retail_price', 'minimum_selling_price',
                     'warranty', 'minimum_stock', 'stock_on_hand', 'status', 'is_published',
                 ])->all(),
@@ -77,7 +77,7 @@ class ProductService
 
             $product->update(collect($data)->only([
                 'name', 'sku', 'barcode', 'category_id', 'brand_id', 'model', 'variant',
-                'description', 'cost_price', 'landed_cost', 'wholesale_price',
+                'description', 'cost_price', 'china_purchase_price', 'shipping_cost', 'landed_cost', 'wholesale_price',
                 'dealer_price', 'distributor_price', 'retail_price', 'minimum_selling_price',
                 'warranty', 'minimum_stock', 'status', 'is_published',
             ])->all());

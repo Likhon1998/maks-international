@@ -58,7 +58,7 @@ class DeliveryReturnRestockTest extends TestCase
             ->assertSee($return->number)
             ->assertSee($shop->name)
             ->assertSee($product->name)
-            ->assertSee('Pending Return');
+            ->assertSee('Pending');
     }
 
     public function test_admin_approve_and_restock_adds_inventory_only_after_approval(): void

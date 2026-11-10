@@ -34,9 +34,26 @@ class ProductReturn extends Model
 
     public const REASON_OTHER = 'other';
 
+    public const REASON_DAMAGED = 'damaged';
+
+    public const REPAIR_NONE = 'none';
+
+    public const REPAIR_PENDING = 'pending';
+
+    public const REPAIR_IN_PROGRESS = 'in_repair';
+
+    public const REPAIR_DONE = 'repaired';
+
+    public const CONDITION_GOOD = 'good';
+
+    public const CONDITION_DAMAGED = 'damaged';
+
+    public const CONDITION_REPAIR = 'repair';
+
     protected $fillable = [
         'number', 'shop_id', 'order_id', 'delivery_id', 'invoice_id', 'status', 'reason_type',
-        'reason', 'total', 'restock', 'credit_issued', 'applied_to_invoice', 'approved_at', 'approved_by',
+        'reason', 'total', 'restock', 'credit_issued', 'replaced', 'repair_status', 'inventory_condition',
+        'refund_amount', 'applied_to_invoice', 'approved_at', 'approved_by',
         'restocked_at', 'restocked_by', 'resolution_notes', 'created_by',
     ];
 
@@ -46,6 +63,8 @@ class ProductReturn extends Model
             'total' => 'decimal:2',
             'restock' => 'boolean',
             'credit_issued' => 'boolean',
+            'replaced' => 'boolean',
+            'refund_amount' => 'decimal:2',
             'applied_to_invoice' => 'decimal:2',
             'approved_at' => 'datetime',
             'restocked_at' => 'datetime',
@@ -107,11 +126,65 @@ class ProductReturn extends Model
     {
         return match ($this->reason_type) {
             self::REASON_WARRANTY => 'Warranty',
-            self::REASON_DEFECT => 'Defect',
-            self::REASON_WRONG_ITEM => 'Wrong item',
-            self::REASON_NOT_ACCEPTED => 'Not accepted by shop',
+            self::REASON_DEFECT => 'Defective',
+            self::REASON_DAMAGED => 'Damaged',
+            self::REASON_WRONG_ITEM => 'Wrong product',
+            self::REASON_NOT_ACCEPTED => 'Customer return',
             default => 'Other',
         };
+    }
+
+    public function handlingStatusLabel(): string
+    {
+        if ($this->replaced) {
+            return 'Replaced';
+        }
+        if ($this->repair_status === self::REPAIR_DONE) {
+            return 'Repaired';
+        }
+        if ($this->credit_issued || (float) $this->refund_amount > 0) {
+            return match ($this->status) {
+                self::STATUS_PENDING => 'Pending',
+                self::STATUS_REJECTED => 'Rejected',
+                default => 'Refunded',
+            };
+        }
+
+        return match ($this->status) {
+            self::STATUS_PENDING => 'Pending',
+            self::STATUS_APPROVED, self::STATUS_RESTOCKED => 'Approved',
+            self::STATUS_REJECTED => 'Rejected',
+            default => $this->statusLabel(),
+        };
+    }
+
+    public function repairStatusLabel(): string
+    {
+        return match ($this->repair_status) {
+            self::REPAIR_PENDING => 'Pending repair',
+            self::REPAIR_IN_PROGRESS => 'In repair',
+            self::REPAIR_DONE => 'Repaired',
+            default => 'Not in repair',
+        };
+    }
+
+    public function inventoryConditionLabel(): string
+    {
+        if ($this->status !== self::STATUS_RESTOCKED && ! $this->inventory_condition) {
+            return 'Not added';
+        }
+
+        return match ($this->inventory_condition) {
+            self::CONDITION_GOOD => 'Good',
+            self::CONDITION_DAMAGED => 'Damaged',
+            self::CONDITION_REPAIR => 'Repair',
+            default => $this->status === self::STATUS_RESTOCKED ? 'Good' : 'Not added',
+        };
+    }
+
+    public function isWarrantyClaim(): bool
+    {
+        return $this->reason_type === self::REASON_WARRANTY;
     }
 
     public function isPending(): bool

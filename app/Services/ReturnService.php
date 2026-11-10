@@ -229,13 +229,13 @@ class ReturnService
     /**
      * Verify a pending return and issue shop credit. Does NOT touch main inventory.
      */
-    public function approve(ProductReturn $return, ?User $actor = null, ?string $notes = null, bool $restockNow = false): ProductReturn
+    public function approve(ProductReturn $return, ?User $actor = null, ?string $notes = null, bool $restockNow = false, array $handling = []): ProductReturn
     {
         if ($return->status !== ProductReturn::STATUS_PENDING) {
             throw ValidationException::withMessages(['return' => 'Only pending returns can be approved.']);
         }
 
-        $approved = DB::transaction(function () use ($return, $actor, $notes) {
+        $approved = DB::transaction(function () use ($return, $actor, $notes, $handling) {
             $return = ProductReturn::query()->lockForUpdate()->with(['items.product', 'shop', 'order'])->findOrFail($return->id);
             if ($return->status !== ProductReturn::STATUS_PENDING) {
                 throw ValidationException::withMessages(['return' => 'Only pending returns can be approved.']);
@@ -250,9 +250,13 @@ class ReturnService
                 'status' => ProductReturn::STATUS_APPROVED,
                 'applied_to_invoice' => $applied,
                 'credit_issued' => true,
+                'refund_amount' => (float) $return->total,
                 'approved_at' => now(),
                 'approved_by' => $actor?->id,
                 'resolution_notes' => $notes,
+                'replaced' => array_key_exists('replaced', $handling) ? (bool) $handling['replaced'] : (bool) $return->replaced,
+                'repair_status' => $handling['repair_status'] ?? $return->repair_status ?? ProductReturn::REPAIR_NONE,
+                'inventory_condition' => $handling['inventory_condition'] ?? $return->inventory_condition,
             ]);
 
             $this->credit->recalculateOutstanding($return->shop);
@@ -307,6 +311,14 @@ class ReturnService
                 throw ValidationException::withMessages(['return' => 'No default warehouse is configured for restocking.']);
             }
 
+            $condition = $return->inventory_condition
+                ?: (in_array($return->reason_type, [ProductReturn::REASON_DEFECT, ProductReturn::REASON_DAMAGED], true)
+                    ? ProductReturn::CONDITION_DAMAGED
+                    : ProductReturn::CONDITION_GOOD);
+            $restockNote = $condition === ProductReturn::CONDITION_DAMAGED
+                ? "Return {$return->number} restock damaged"
+                : "Return {$return->number} restock";
+
             foreach ($return->items as $item) {
                 if (! $item->product_id) {
                     continue;
@@ -316,7 +328,7 @@ class ReturnService
                     $item->product,
                     (int) $item->quantity,
                     $actor,
-                    "Return {$return->number} restock",
+                    $restockNote,
                     $return->number,
                 );
             }
@@ -324,6 +336,7 @@ class ReturnService
             $return->update([
                 'status' => ProductReturn::STATUS_RESTOCKED,
                 'restock' => true,
+                'inventory_condition' => $condition,
                 'restocked_at' => now(),
                 'restocked_by' => $actor?->id,
                 'resolution_notes' => $notes ?: $return->resolution_notes,

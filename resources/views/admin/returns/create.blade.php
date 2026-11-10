@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'New return')
 @section('content')
-    <x-page-header title="New return" subtitle="Submit warranty / defect claim for review">
+    <x-page-header title="New return" subtitle="Record a customer/shop return or warranty claim">
         <a class="btn btn-ghost" href="{{ route('returns.index') }}">Back</a>
     </x-page-header>
 
@@ -35,7 +35,7 @@
             <div class="field">
                 <label class="label">Reason type</label>
                 <select class="select" name="reason_type" required>
-                    @foreach (['warranty' => 'Warranty', 'defect' => 'Defect', 'wrong_item' => 'Wrong item', 'not_accepted' => 'Not accepted by shop', 'other' => 'Other'] as $value => $label)
+                    @foreach (['warranty' => 'Warranty', 'defect' => 'Defective', 'damaged' => 'Damaged', 'wrong_item' => 'Wrong product', 'not_accepted' => 'Customer return', 'other' => 'Other'] as $value => $label)
                         <option value="{{ $value }}" @selected(old('reason_type', 'warranty') === $value)>{{ $label }}</option>
                     @endforeach
                 </select>

@@ -9,7 +9,7 @@
             ['name' => 'fulfilment.index', 'label' => 'Warehouse desk', 'icon' => 'clipboard-check', 'permission' => 'fulfilment.view'],
             ['name' => 'deliveries.index', 'label' => 'Deliveries', 'icon' => 'truck', 'permission' => 'deliveries.view'],
             ['name' => 'deliveries.men', 'label' => 'Delivery men', 'icon' => 'bike', 'permission' => 'deliveries.view'],
-            ['name' => 'returns.index', 'label' => 'Returns', 'icon' => 'rotate-ccw'],
+            ['name' => 'returns.index', 'label' => 'Returns & warranty', 'icon' => 'rotate-ccw'],
             ['name' => 'invoices.index', 'label' => 'Invoices', 'icon' => 'file-text'],
             ['name' => 'payments.index', 'label' => 'Payments', 'icon' => 'wallet'],
             ['name' => 'dues.index', 'label' => 'Due Management', 'icon' => 'scale', 'permission' => 'dues.view'],

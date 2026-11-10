@@ -6,7 +6,7 @@
             'sales' => 'Sales intelligence',
             'operations' => 'Operations',
         ];
-        $grouped = collect($catalog)->groupBy(fn ($report) => $report['group'] ?? 'operations');
+        $grouped = collect($catalog)->groupBy(fn ($report) => $report['group'] ?? 'operations', true);
         $period = ['from' => $from, 'to' => $to];
     @endphp
     <x-page-header title="Reports" subtitle="Sales, profit and operational packs">

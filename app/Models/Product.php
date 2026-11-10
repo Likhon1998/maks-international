@@ -19,7 +19,7 @@ class Product extends Model
 
     protected $fillable = [
         'name', 'sku', 'barcode', 'category_id', 'brand_id', 'model', 'variant',
-        'description', 'image_path', 'cost_price', 'landed_cost', 'wholesale_price',
+        'description', 'image_path', 'cost_price', 'china_purchase_price', 'shipping_cost', 'landed_cost', 'wholesale_price',
         'dealer_price', 'distributor_price', 'retail_price', 'minimum_selling_price',
         'warranty', 'minimum_stock', 'stock_on_hand', 'reserved_stock',
         'status', 'is_published', 'created_by',
@@ -29,6 +29,8 @@ class Product extends Model
     {
         return [
             'cost_price' => 'decimal:2',
+            'china_purchase_price' => 'decimal:2',
+            'shipping_cost' => 'decimal:2',
             'landed_cost' => 'decimal:2',
             'wholesale_price' => 'decimal:2',
             'dealer_price' => 'decimal:2',
@@ -89,6 +91,11 @@ class Product extends Model
         }
 
         return null;
+    }
+
+    public function purchaseTotalCost(): float
+    {
+        return round((float) $this->shipping_cost + (float) $this->china_purchase_price, 2);
     }
 
     public function inventoryUnitCost(): float

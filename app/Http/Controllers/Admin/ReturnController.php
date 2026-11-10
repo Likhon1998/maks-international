@@ -18,24 +18,55 @@ class ReturnController extends Controller
     {
         abort_unless($request->user()->can('returns.view'), 403);
 
-        $status = $request->get('status');
+        $status = (string) $request->get('status', '');
+        $kind = in_array($request->get('kind'), ['returns', 'warranty'], true) ? $request->get('kind') : '';
+        $search = trim((string) $request->get('q', ''));
+
+        $base = ProductReturn::query()->whereHas('shop', fn ($q) => $q->visibleTo($request->user()));
         $counts = [
-            'all' => ProductReturn::query()->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))->count(),
-            'pending' => ProductReturn::query()->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))->where('status', ProductReturn::STATUS_PENDING)->count(),
-            'approved' => ProductReturn::query()->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))->where('status', ProductReturn::STATUS_APPROVED)->count(),
-            'restocked' => ProductReturn::query()->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))->where('status', ProductReturn::STATUS_RESTOCKED)->count(),
-            'rejected' => ProductReturn::query()->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))->where('status', ProductReturn::STATUS_REJECTED)->count(),
+            'all' => (clone $base)->count(),
+            'pending' => (clone $base)->where('status', ProductReturn::STATUS_PENDING)->count(),
+            'approved' => (clone $base)->where('status', ProductReturn::STATUS_APPROVED)->count(),
+            'restocked' => (clone $base)->where('status', ProductReturn::STATUS_RESTOCKED)->count(),
+            'rejected' => (clone $base)->where('status', ProductReturn::STATUS_REJECTED)->count(),
+            'repaired' => (clone $base)->where('repair_status', ProductReturn::REPAIR_DONE)->count(),
+            'replaced' => (clone $base)->where('replaced', true)->count(),
+            'refunded' => (clone $base)->where(fn ($q) => $q->where('credit_issued', true)->orWhere('refund_amount', '>', 0))->count(),
+            'returns' => (clone $base)->where('reason_type', '!=', ProductReturn::REASON_WARRANTY)->count(),
+            'warranty' => (clone $base)->where('reason_type', ProductReturn::REASON_WARRANTY)->count(),
         ];
 
         $returns = ProductReturn::query()
             ->whereHas('shop', fn ($q) => $q->visibleTo($request->user()))
-            ->with(['shop', 'order.salesman', 'creator', 'items'])
-            ->when($status, fn ($q) => $q->where('status', $status))
+            ->with(['shop', 'order.salesman', 'invoice', 'creator', 'items'])
+            ->when($kind === 'warranty', fn ($q) => $q->where('reason_type', ProductReturn::REASON_WARRANTY))
+            ->when($kind === 'returns', fn ($q) => $q->where('reason_type', '!=', ProductReturn::REASON_WARRANTY))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('number', 'like', '%'.$search.'%')
+                        ->orWhereHas('shop', fn ($s) => $s->where('name', 'like', '%'.$search.'%')->orWhere('owner_name', 'like', '%'.$search.'%'))
+                        ->orWhereHas('order', fn ($o) => $o->where('number', 'like', '%'.$search.'%'))
+                        ->orWhereHas('invoice', fn ($i) => $i->where('number', 'like', '%'.$search.'%'))
+                        ->orWhereHas('items', fn ($it) => $it->where('product_name', 'like', '%'.$search.'%')->orWhere('product_sku', 'like', '%'.$search.'%'));
+                });
+            })
+            ->when($status !== '', function ($q) use ($status) {
+                match ($status) {
+                    'pending' => $q->where('status', ProductReturn::STATUS_PENDING),
+                    'approved' => $q->whereIn('status', [ProductReturn::STATUS_APPROVED, ProductReturn::STATUS_RESTOCKED]),
+                    'restocked' => $q->where('status', ProductReturn::STATUS_RESTOCKED),
+                    'rejected' => $q->where('status', ProductReturn::STATUS_REJECTED),
+                    'repaired' => $q->where('repair_status', ProductReturn::REPAIR_DONE),
+                    'replaced' => $q->where('replaced', true),
+                    'refunded' => $q->where(fn ($inner) => $inner->where('credit_issued', true)->orWhere('refund_amount', '>', 0)),
+                    default => $q->where('status', $status),
+                };
+            })
             ->latest()
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.returns.index', compact('returns', 'counts', 'status'));
+        return view('admin.returns.index', compact('returns', 'counts', 'status', 'kind', 'search'));
     }
 
     public function create(Request $request)
@@ -56,7 +87,7 @@ class ReturnController extends Controller
         $data = $request->validate([
             'shop_id' => ['required', 'exists:shops,id'],
             'order_id' => ['required', 'exists:orders,id'],
-            'reason_type' => ['required', 'in:warranty,defect,wrong_item,not_accepted,other'],
+            'reason_type' => ['required', 'in:warranty,defect,damaged,wrong_item,not_accepted,other'],
             'reason' => ['nullable', 'string', 'max:2000'],
             'restock' => ['nullable', 'boolean'],
             'items' => ['required', 'array'],
@@ -92,10 +123,17 @@ class ReturnController extends Controller
         $data = $request->validate([
             'resolution_notes' => ['nullable', 'string', 'max:2000'],
             'restock_now' => ['nullable', 'boolean'],
+            'replaced' => ['nullable', 'boolean'],
+            'repair_status' => ['nullable', 'in:none,pending,in_repair,repaired'],
+            'inventory_condition' => ['nullable', 'in:good,damaged,repair'],
         ]);
 
         $restockNow = $request->boolean('restock_now', true);
-        $this->returns->approve($productReturn, $request->user(), $data['resolution_notes'] ?? null, $restockNow);
+        $this->returns->approve($productReturn, $request->user(), $data['resolution_notes'] ?? null, $restockNow, [
+            'replaced' => $request->boolean('replaced'),
+            'repair_status' => $data['repair_status'] ?? ProductReturn::REPAIR_NONE,
+            'inventory_condition' => $data['inventory_condition'] ?? null,
+        ]);
 
         $message = $restockNow
             ? 'Return approved and quantities added to inventory.'
