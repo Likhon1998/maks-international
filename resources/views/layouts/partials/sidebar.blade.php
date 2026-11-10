@@ -57,7 +57,7 @@
     @click.outside="if (!isDesktop) sidebarOpen = false"
 >
     <div class="sidebar-top">
-        <a href="{{ route('dashboard') }}" class="sidebar-brand" title="Bynnas Trade">
+        <a href="{{ route('dashboard') }}" class="sidebar-brand" title="{{ $site->siteName() }}">
             <x-brand-logo :size="32" show-wordmark />
         </a>
         <button

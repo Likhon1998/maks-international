@@ -47,7 +47,7 @@ class ShopAuthController extends Controller
         if (! $user->is_active) {
             Auth::logout();
             throw ValidationException::withMessages([
-                'email' => 'This account has been deactivated. Contact Bynnas Trade admin.',
+                'email' => 'This account has been deactivated. Contact '.app(\App\Support\SiteContent::class)->siteName().' admin.',
             ]);
         }
 
@@ -60,7 +60,7 @@ class ShopAuthController extends Controller
         if (! $shop || $shop->status !== Shop::STATUS_ACTIVE) {
             Auth::logout();
             throw ValidationException::withMessages([
-                'email' => 'Your shop is not active yet. Contact Bynnas Trade admin.',
+                'email' => 'Your shop is not active yet. Contact '.app(\App\Support\SiteContent::class)->siteName().' admin.',
             ]);
         }
 

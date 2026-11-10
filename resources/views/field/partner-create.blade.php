@@ -1,7 +1,7 @@
 @extends('field.layouts.app')
 @section('title', 'New partner application')
 @section('heading', 'New partner application')
-@section('subheading', 'Apply for a shop owner to join the Bynnas Trade partner portal.')
+@section('subheading', 'Apply for a shop owner to join the '.$site->siteName().' partner portal.')
 @section('back', route('field.partners'))
 @section('has-bar', '1')
 @php

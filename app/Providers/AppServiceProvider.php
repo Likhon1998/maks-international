@@ -65,7 +65,11 @@ class AppServiceProvider extends ServiceProvider
             return null;
         });
 
-        View::composer('site.*', fn ($view) => $view->with('site', app(SiteContent::class)));
+        View::composer('*', function ($view) {
+            if (! $view->offsetExists('site')) {
+                $view->with('site', app(SiteContent::class));
+            }
+        });
 
         View::composer('field.layouts.app', function ($view) {
             $user = auth()->user();

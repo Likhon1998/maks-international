@@ -15,7 +15,7 @@
 
     <div class="inv-doc-head">
         <div class="inv-doc-head-left">
-            <div class="inv-doc-brand">Bynnas Trade</div>
+            <div class="inv-doc-brand">{{ $site->siteName() }}</div>
             <div class="inv-doc-muted">Wholesale · Bangladesh · Asia/Dhaka</div>
         </div>
         <div class="inv-doc-head-right">

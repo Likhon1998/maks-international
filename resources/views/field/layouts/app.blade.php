@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="format-detection" content="telephone=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Field') · Bynnas Trade</title>
+    <title>@yield('title', 'Field') · {{ $site->siteName() }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/field.css') }}?v={{ filemtime(public_path('css/field.css')) }}">
@@ -86,9 +86,9 @@
         @yield('bar')
 
         <nav class="f-nav" aria-label="Main">
-            <a class="f-nav-brand" href="{{ route('field.dashboard') }}" title="Bynnas Trade">
-                <img src="{{ asset('images/logo.png') }}" alt="">
-                <span><b>Bynnas Trade</b><small>Field sales app</small></span>
+            <a class="f-nav-brand" href="{{ route('field.dashboard') }}" title="{{ $site->siteName() }}">
+                <img src="{{ $site->logoUrl() }}" alt="{{ $site->siteName() }}">
+                <span><b>{{ $site->siteName() }}</b><small>Field sales app</small></span>
             </a>
             <button type="button" class="f-side-toggle" id="f-side-toggle" aria-label="Collapse sidebar" title="Collapse sidebar" aria-expanded="true"><i data-lucide="chevron-left"></i></button>
             <span class="f-nav-label">Menu</span>
@@ -102,7 +102,7 @@
             <a href="{{ route('field.deliveries') }}" title="Deliveries" class="tone-sky {{ request()->routeIs('field.deliveries') ? 'active' : '' }}"><span class="f-nav-ico"><i data-lucide="truck"></i></span><span class="f-nav-text">Deliveries</span></a>
 
             <button type="button" class="f-nav-more-btn tone-teal {{ $moreActive ? 'active' : '' }}" @click="moreOpen = true" aria-label="More menu">
-                <img class="f-nav-more-logo" src="{{ asset('images/logo.png') }}" alt="" width="22" height="22">
+                <img class="f-nav-more-logo" src="{{ $site->logoUrl() }}" alt="" width="22" height="22">
                 <span class="f-nav-text">More</span>
             </button>
 
@@ -133,9 +133,9 @@
     <div class="f-sheet f-more-sheet" x-show="moreOpen" x-transition x-cloak role="dialog" aria-label="More" @click.stop>
         <div class="f-sheet-grip"></div>
         <div class="f-more-brand">
-            <img src="{{ asset('images/logo.png') }}" alt="Bynnas Trade">
+            <img src="{{ $site->logoUrl() }}" alt="{{ $site->siteName() }}">
             <span>
-                <b>Bynnas Trade</b>
+                <b>{{ $site->siteName() }}</b>
                 <small>Field sales app</small>
             </span>
         </div>

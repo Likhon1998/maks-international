@@ -45,7 +45,7 @@
                         @if ($result['chat_url'])
                             <a class="f-btn f-btn-success" href="{{ $result['chat_url'] }}" target="_blank" rel="noopener"><i data-lucide="message-circle"></i> Send on WhatsApp</a>
                         @endif
-                        <button type="button" class="f-btn f-btn-ghost" @click="copy(@js("Bynnas Trade shop login\nEmail: {$result['email']}\nPassword: {$result['password']}\nSign in: ".route('portal.login')), 'Login details')"><i data-lucide="clipboard-copy"></i> Copy all</button>
+                        <button type="button" class="f-btn f-btn-ghost" @click="copy(@js($site->siteName().' shop login'."\nEmail: {$result['email']}\nPassword: {$result['password']}\nSign in: ".route('portal.login')), 'Login details')"><i data-lucide="clipboard-copy"></i> Copy all</button>
                         <button type="button" class="f-btn f-btn-ghost" x-show="!editing" @click="editing = true; $nextTick(() => $refs.password.focus())"><i data-lucide="key-round"></i> Change password</button>
                         <a class="f-btn f-btn-primary" href="{{ route('field.orders.create') }}"><i data-lucide="shopping-bag"></i> Take order</a>
                     </div>

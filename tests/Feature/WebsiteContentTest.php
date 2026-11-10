@@ -126,6 +126,7 @@ class WebsiteContentTest extends TestCase
         $this->assertStringStartsWith('site/', $logo);
         Storage::disk('public')->assertExists($logo);
         $this->get(route('dashboard'))->assertOk()->assertSee(route('favicon.png', ['size' => 32]), false);
+        $this->get(route('dashboard'))->assertSee('src="'.e(app(SiteContent::class)->logoUrl()).'"', false);
 
         $this->put(route('website.update'), $this->form('general', ['remove_images' => ['logo']]))->assertSessionHasNoErrors();
         $this->assertNull(app(SiteContent::class)->get('general.logo'));
@@ -135,6 +136,33 @@ class WebsiteContentTest extends TestCase
         $this->post(route('website.reset'), ['section' => 'about'])->assertRedirect(route('website.edit', ['tab' => 'about']));
         $this->assertFalse(SiteSetting::where('section', 'about')->exists());
         $this->get(route('site.about'))->assertSee('Wholesale distribution, built for Bangladesh.');
+    }
+
+    public function test_admin_branding_appears_on_field_and_login_screens(): void
+    {
+        Storage::fake('public');
+        $this->actingAs($this->super)->put(route('website.update'), $this->form('general', [
+            'site_name' => 'Maks Trade International',
+        ]) + [
+            'logo' => UploadedFile::fake()->image('maks-mark.png', 200, 200),
+        ])->assertSessionHasNoErrors();
+
+        $logo = app(SiteContent::class)->logoUrl();
+        $salesman = User::where('email', 'karim@field.local')->firstOrFail();
+
+        $this->actingAs($salesman)
+            ->get(route('field.dashboard'))
+            ->assertOk()
+            ->assertSee('Maks Trade International')
+            ->assertSee($logo, false)
+            ->assertDontSee('Bynnas Trade');
+
+        $this->post(route('logout'));
+        $this->get(route('field.login'))
+            ->assertOk()
+            ->assertSee('Maks Trade International')
+            ->assertSee($logo, false)
+            ->assertDontSee('Bynnas Trade');
     }
 
     public function test_website_permissions(): void

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Shop Portal') · Bynnas Trade</title>
+    <title>@yield('title', 'Shop Portal') · {{ $site->siteName() }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/admin.css') }}?v={{ @filemtime(public_path('css/admin.css')) }}">
     @include('partials.favicon')
@@ -52,7 +52,7 @@
             @click.outside="if (!isDesktop) sidebarOpen = false"
         >
             <div class="sidebar-top">
-                <a href="{{ route('portal.dashboard') }}" class="sidebar-brand" title="Bynnas Trade Portal">
+                <a href="{{ route('portal.dashboard') }}" class="sidebar-brand" title="{{ $site->siteName() }}">
                     <x-brand-logo :size="32" show-wordmark wordmark="B2B Portal" />
                 </a>
                 <button

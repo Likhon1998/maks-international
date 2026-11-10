@@ -7,7 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Sales team login · Bynnas Trade</title>
+    <title>Sales team login · {{ $site->siteName() }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -179,8 +179,8 @@
 
     <div class="lg-page">
         <a class="lg-brand" href="{{ route('site.home') }}">
-            <img src="{{ asset('images/logo.png') }}" alt="">
-            <span><b>Bynnas Trade</b><small>B2B Trading Platform</small></span>
+            <img src="{{ $site->logoUrl() }}" alt="{{ $site->siteName() }}">
+            <span><b>{{ $site->siteName() }}</b><small>B2B Trading Platform</small></span>
         </a>
 
         <main class="lg-grid">
@@ -213,8 +213,8 @@
 
             <div class="lg-card lg-in">
                 <div class="lg-card-brand">
-                    <img src="{{ asset('images/logo.png') }}" alt="">
-                    <span><b>Bynnas Trade</b><small>Sales Department</small></span>
+                    <img src="{{ $site->logoUrl() }}" alt="{{ $site->siteName() }}">
+                    <span><b>{{ $site->siteName() }}</b><small>Sales Department</small></span>
                 </div>
 
                 <h1>Sign In</h1>
@@ -254,7 +254,7 @@
                         <label class="lg-remember"><input type="checkbox" name="remember" value="1" {{ old('remember', true) ? 'checked' : '' }}> Remember me</label>
                         <button type="button" class="lg-forgot" id="lg-forgot" aria-expanded="false" aria-controls="lg-note">Forgot password?</button>
                     </div>
-                    <div class="lg-note" id="lg-note">Ask your sales manager or the Bynnas Trade office to reset your password from the admin panel.</div>
+                    <div class="lg-note" id="lg-note">Ask your sales manager or the {{ $site->siteName() }} office to reset your password from the admin panel.</div>
 
                     <button class="lg-submit" id="lg-submit" type="submit">
                         <span class="lg-spinner" aria-hidden="true"></span>
@@ -268,7 +268,7 @@
         </main>
 
         <footer class="lg-foot">
-            <span>© {{ now()->year }} Bynnas Trade</span>
+            <span>© {{ now()->year }} {{ $site->siteName() }}</span>
             <nav>
                 <a href="{{ route('portal.login') }}">Partner login</a>
                 <a href="{{ route('login') }}">Admin login</a>

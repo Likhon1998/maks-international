@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>{{ $invoice->number }} · Bynnas Trade</title>
+    <title>{{ $invoice->number }} · {{ $site->siteName() }}</title>
     <style>
         @page { margin: 10mm 12mm; size: A4 portrait; }
         * { box-sizing: border-box; }
