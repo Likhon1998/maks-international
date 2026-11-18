@@ -16,7 +16,7 @@
     {{-- Register before Alpine loads so adminShell exists on boot --}}
     <script>
         document.addEventListener('alpine:init', () => {
-            Alpine.data('adminShell', () => {
+            Alpine.data('adminShell', (config = {}) => {
                 const stored = localStorage.getItem('bt_sidebar_v2');
                 return {
                     isDesktop: window.innerWidth >= 1025,
@@ -24,6 +24,22 @@
                     sidebarExpanded: stored !== '0',
                     commandOpen: false,
                     notifsOpen: false,
+                    unreadCount: Number(config.unread || 0),
+                    latestNotifId: config.latestId || null,
+                    notifItems: Array.isArray(config.items) ? config.items : [],
+                    notifLoading: false,
+                    notifPollTimer: null,
+                    notifPrimed: false,
+                    _audioCtx: null,
+                    get unreadLabel() {
+                        return this.unreadCount > 9 ? '9+' : String(this.unreadCount);
+                    },
+                    init() {
+                        this.startNotifPoll();
+                        const unlock = () => this.unlockAudio();
+                        window.addEventListener('pointerdown', unlock, { once: true });
+                        window.addEventListener('keydown', unlock, { once: true });
+                    },
                     toggleSidebar() {
                         if (!this.isDesktop) {
                             this.sidebarOpen = !this.sidebarOpen;
@@ -41,6 +57,154 @@
                     onResize() {
                         this.isDesktop = window.innerWidth >= 1025;
                         if (this.isDesktop) this.sidebarOpen = true;
+                    },
+                    csrf() {
+                        return document.querySelector('meta[name="csrf-token"]')?.content || '';
+                    },
+                    async toggleNotifs() {
+                        this.notifsOpen = !this.notifsOpen;
+                        if (!this.notifsOpen) return;
+                        this.unlockAudio();
+                        await this.refreshNotifs();
+                        const unreadIds = this.notifItems.filter((n) => !n.read).map((n) => n.id);
+                        if (unreadIds.length) {
+                            await this.markNotifsSeen(unreadIds);
+                        }
+                    },
+                    async refreshNotifs() {
+                        this.notifLoading = true;
+                        try {
+                            const res = await fetch(@js(route('notifications.feed')), {
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                credentials: 'same-origin',
+                            });
+                            if (!res.ok) return;
+                            const data = await res.json();
+                            this.notifItems = Array.isArray(data.items) ? data.items : [];
+                            this.unreadCount = Number(data.unread || 0);
+                            if (data.latest_id) this.latestNotifId = data.latest_id;
+                        } catch (e) {
+                            // Keep existing panel state if the feed cannot refresh.
+                        } finally {
+                            this.notifLoading = false;
+                            this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+                        }
+                    },
+                    async markNotifsSeen(ids) {
+                        try {
+                            const res = await fetch(@js(route('notifications.seen')), {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': this.csrf(),
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                },
+                                credentials: 'same-origin',
+                                body: JSON.stringify({ ids }),
+                            });
+                            if (!res.ok) return;
+                            const data = await res.json();
+                            this.unreadCount = Number(data.unread || 0);
+                            const seen = new Set(ids);
+                            this.notifItems = this.notifItems.map((n) => seen.has(n.id) ? { ...n, read: true } : n);
+                        } catch (e) {
+                            // Ignore transient network errors; next open will retry.
+                        }
+                    },
+                    async markAllNotifsRead() {
+                        try {
+                            const res = await fetch(@js(route('notifications.read-all')), {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': this.csrf(),
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                },
+                                credentials: 'same-origin',
+                            });
+                            if (!res.ok) return;
+                            this.unreadCount = 0;
+                            this.notifItems = this.notifItems.map((n) => ({ ...n, read: true }));
+                        } catch (e) {}
+                    },
+                    openNotif(item) {
+                        if (!item?.id) return;
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = @js(url('/admin/notifications')).replace(/\/?$/, '/') + encodeURIComponent(item.id) + '/read';
+                        const token = document.createElement('input');
+                        token.type = 'hidden';
+                        token.name = '_token';
+                        token.value = this.csrf();
+                        form.appendChild(token);
+                        document.body.appendChild(form);
+                        form.submit();
+                    },
+                    startNotifPoll() {
+                        if (this.notifPollTimer) clearInterval(this.notifPollTimer);
+                        this.notifPollTimer = setInterval(() => this.pollNotifs(), 20000);
+                        // Light first check after page settle.
+                        setTimeout(() => this.pollNotifs(), 4000);
+                    },
+                    async pollNotifs() {
+                        try {
+                            const res = await fetch(@js(route('notifications.poll')), {
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                credentials: 'same-origin',
+                            });
+                            if (!res.ok) return;
+                            const data = await res.json();
+                            const nextUnread = Number(data.unread || 0);
+                            const nextLatest = data.latest_id || null;
+                            const isNew = this.notifPrimed
+                                && nextLatest
+                                && nextLatest !== this.latestNotifId
+                                && nextUnread > 0;
+                            this.unreadCount = nextUnread;
+                            if (nextLatest) this.latestNotifId = nextLatest;
+                            this.notifPrimed = true;
+                            if (isNew) {
+                                this.playNotifSound();
+                                if (this.notifsOpen) await this.refreshNotifs();
+                            }
+                        } catch (e) {}
+                    },
+                    unlockAudio() {
+                        try {
+                            const Ctx = window.AudioContext || window.webkitAudioContext;
+                            if (!Ctx) return;
+                            if (!this._audioCtx) this._audioCtx = new Ctx();
+                            if (this._audioCtx.state === 'suspended') this._audioCtx.resume();
+                        } catch (e) {}
+                    },
+                    playNotifSound() {
+                        try {
+                            const Ctx = window.AudioContext || window.webkitAudioContext;
+                            if (!Ctx) return;
+                            if (!this._audioCtx) this._audioCtx = new Ctx();
+                            const ctx = this._audioCtx;
+                            if (ctx.state === 'suspended') ctx.resume();
+                            const now = ctx.currentTime;
+                            // Soft two-tone chime (C5 → E5).
+                            [[523.25, 0], [659.25, 0.12]].forEach(([freq, delay]) => {
+                                const osc = ctx.createOscillator();
+                                const gain = ctx.createGain();
+                                const filter = ctx.createBiquadFilter();
+                                osc.type = 'sine';
+                                osc.frequency.value = freq;
+                                filter.type = 'lowpass';
+                                filter.frequency.value = 1800;
+                                gain.gain.setValueAtTime(0.0001, now + delay);
+                                gain.gain.exponentialRampToValueAtTime(0.07, now + delay + 0.03);
+                                gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.42);
+                                osc.connect(filter);
+                                filter.connect(gain);
+                                gain.connect(ctx.destination);
+                                osc.start(now + delay);
+                                osc.stop(now + delay + 0.45);
+                            });
+                        } catch (e) {}
                     },
                 };
             });
@@ -261,7 +425,26 @@
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 </head>
-<body x-data="adminShell"
+@php
+    $shellUser = auth()->user();
+    $shellUnread = $shellUser?->unreadNotifications()->count() ?? 0;
+    $shellLatest = $shellUser?->notifications()->latest('created_at')->latest('id')->value('id');
+    $shellItems = $shellUser
+        ? $shellUser->notifications()->latest()->limit(10)->get()->map(function ($n) {
+            $data = is_array($n->data) ? $n->data : [];
+            return [
+                'id' => $n->id,
+                'title' => (string) ($data['title'] ?? 'Alert'),
+                'body' => \Illuminate\Support\Str::limit((string) ($data['body'] ?? ''), 80),
+                'category' => (string) ($data['category'] ?? 'system'),
+                'url' => is_string($data['url'] ?? null) ? $data['url'] : null,
+                'read' => $n->read_at !== null,
+                'when' => $n->created_at?->timezone(config('app.timezone'))->format('d M · h:i A'),
+            ];
+        })->values()->all()
+        : [];
+@endphp
+<body x-data="adminShell({ unread: {{ (int) $shellUnread }}, latestId: @js($shellLatest), items: @js($shellItems) })"
       @keydown.ctrl.k.prevent="commandOpen = true"
       @keydown.meta.k.prevent="commandOpen = true"
       @keydown.escape="commandOpen = false; notifsOpen = false"

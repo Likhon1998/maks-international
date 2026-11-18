@@ -33,13 +33,17 @@
         </form>
     </div>
 
-    <div class="card notif-history">
+    @php
+        $unreadIds = $notifications->getCollection()->whereNull('read_at')->pluck('id')->values()->all();
+    @endphp
+
+    <div class="card notif-history" data-unread-ids='@json($unreadIds)'>
         @forelse ($notifications as $n)
             @php
                 $data = $n->data;
                 $when = $n->created_at?->timezone(config('app.timezone'));
             @endphp
-            <div class="notif-history-row {{ $n->read_at ? 'is-read' : 'is-unread' }}">
+            <div class="notif-history-row {{ $n->read_at ? 'is-read' : 'is-unread' }}" @unless($n->read_at) data-unread-id="{{ $n->id }}" @endunless>
                 <div class="notif-history-stamp">
                     <span class="notif-history-day">{{ $when?->format('D') }}</span>
                     <span class="notif-history-date">{{ $when?->format('d M Y') }}</span>
@@ -57,7 +61,7 @@
                 </div>
                 <form method="post" action="{{ route('notifications.read', $n->id) }}">
                     @csrf
-                    <button class="btn btn-ghost btn-sm" type="submit">{{ $n->read_at ? 'Open' : 'Read' }}</button>
+                    <button class="btn btn-ghost btn-sm" type="submit">{{ $n->read_at ? 'Open' : 'Open' }}</button>
                 </form>
             </div>
         @empty
@@ -69,3 +73,47 @@
         @endif
     </div>
 @endsection
+
+@push('scripts')
+<script>
+(() => {
+    const root = document.querySelector('.notif-history[data-unread-ids]');
+    if (!root) return;
+    let ids = [];
+    try { ids = JSON.parse(root.getAttribute('data-unread-ids') || '[]'); } catch (e) { ids = []; }
+    if (!Array.isArray(ids) || !ids.length) return;
+
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    fetch(@js(route('notifications.seen')), {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ ids }),
+    }).then((res) => {
+        if (!res.ok) return;
+        root.querySelectorAll('.notif-history-row.is-unread').forEach((row) => {
+            row.classList.remove('is-unread');
+            row.classList.add('is-read');
+            row.querySelector('.badge-pending')?.remove();
+            delete row.dataset.unreadId;
+        });
+        // Keep the top-bar unread badge in sync if Alpine shell is present.
+        try {
+            const shell = Alpine?.$data?.(document.body);
+            if (shell && typeof shell.unreadCount === 'number') {
+                shell.unreadCount = Math.max(0, shell.unreadCount - ids.length);
+                if (Array.isArray(shell.notifItems)) {
+                    const seen = new Set(ids);
+                    shell.notifItems = shell.notifItems.map((n) => seen.has(n.id) ? { ...n, read: true } : n);
+                }
+            }
+        } catch (e) {}
+    }).catch(() => {});
+})();
+</script>
+@endpush

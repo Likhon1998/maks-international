@@ -156,6 +156,9 @@ Route::prefix('admin')->group(function () {
         Route::put('/account/password', [AccountPasswordController::class, 'update'])->middleware('throttle:6,1')->name('account.password.update');
 
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('/notifications/poll', [NotificationController::class, 'poll'])->name('notifications.poll');
+        Route::get('/notifications/feed', [NotificationController::class, 'feed'])->name('notifications.feed');
+        Route::post('/notifications/seen', [NotificationController::class, 'markSeen'])->name('notifications.seen');
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
 
