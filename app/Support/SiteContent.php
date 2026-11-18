@@ -259,7 +259,10 @@ class SiteContent
 
     public function logoUrl(): string
     {
-        return $this->imageUrl($this->get('general.logo')) ?? asset('images/logo.png');
+        $url = $this->imageUrl($this->get('general.logo')) ?? asset('images/logo.png');
+        $version = Favicon::version();
+
+        return $url.(str_contains($url, '?') ? '&' : '?').'v='.$version;
     }
 
     public function logoMarkUrl(int $size = 48): string

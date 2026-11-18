@@ -101,4 +101,45 @@ class VisitService
 
         return $visit->fresh(['shop', 'order']);
     }
+
+    /**
+     * Discard an accidental check-in (no order). Shop stays "not visited".
+     */
+    public function cancelMistake(ShopVisit $visit, ?User $actor = null): ShopVisit
+    {
+        if ($visit->order_id) {
+            throw ValidationException::withMessages([
+                'visit' => 'This visit already has an order — leave normally instead.',
+            ]);
+        }
+
+        $visit = DB::transaction(function () use ($visit) {
+            $visit = ShopVisit::query()->lockForUpdate()->findOrFail($visit->id);
+            if (! $visit->isOpen()) {
+                throw ValidationException::withMessages([
+                    'visit' => 'This visit is already closed.',
+                ]);
+            }
+
+            $visit->update([
+                'checked_out_at' => now(),
+                'outcome' => ShopVisit::OUTCOME_CANCELLED,
+                'notes' => 'Opened by mistake — not a real visit.',
+            ]);
+
+            return $visit;
+        });
+
+        $this->auditLogger->log(
+            'visits',
+            'cancelled',
+            "Cancelled mistaken check-in #{$visit->id}",
+            $visit,
+            null,
+            ['shop_id' => $visit->shop_id],
+            $actor,
+        );
+
+        return $visit->fresh(['shop']);
+    }
 }

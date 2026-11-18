@@ -226,7 +226,7 @@ class OrderService
                     'line_total' => $lineTotal,
                 ]);
 
-                $subtotal += $lineTotal;
+                $subtotal = round($subtotal + $lineTotal, 2);
                 $itemCount += $qty;
             }
 
@@ -995,7 +995,7 @@ class OrderService
                     'line_total' => $lineTotal,
                 ]);
 
-                $subtotal += $lineTotal;
+                $subtotal = round($subtotal + $lineTotal, 2);
                 $itemCount += $qty;
             }
 

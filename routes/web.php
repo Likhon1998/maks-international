@@ -87,6 +87,8 @@ Route::prefix('portal')->name('portal.')->group(function () {
 });
 
 Route::prefix('field')->name('field.')->group(function () {
+    Route::post('/locale', [SalesmanAuthController::class, 'setLocale'])->middleware('throttle:60,1')->name('locale');
+
     Route::middleware('guest')->group(function () {
         Route::get('/login', [SalesmanAuthController::class, 'showLogin'])->name('login');
         Route::post('/login', [SalesmanAuthController::class, 'login'])->middleware('throttle:login')->name('login.submit');
@@ -123,6 +125,8 @@ Route::prefix('field')->name('field.')->group(function () {
         Route::post('/orders/{order}/discount', [FieldPortalController::class, 'discountOrder'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.discount');
         Route::get('/earnings', [FieldPortalController::class, 'earnings'])->name('earnings');
         Route::get('/collections', [FieldPortalController::class, 'collections'])->name('collections');
+        Route::get('/dues', [FieldPortalController::class, 'dues'])->name('dues');
+        Route::get('/dues/{shop}', [FieldPortalController::class, 'duesShop'])->whereNumber('shop')->name('dues.shop');
         Route::get('/deliveries', [FieldPortalController::class, 'deliveries'])->name('deliveries');
         Route::get('/deliveries/stock', [FieldPortalController::class, 'deliveryStock'])->name('deliveries.stock');
         Route::get('/deliveries/{delivery}', [FieldPortalController::class, 'showDelivery'])->whereNumber('delivery')->name('deliveries.show');

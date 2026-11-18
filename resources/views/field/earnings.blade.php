@@ -1,7 +1,7 @@
 @extends('field.layouts.app')
-@section('title', 'Earnings')
-@section('heading', 'My earnings')
-@section('subheading', 'Commission and rewards · '.now()->format('F Y'))
+@section('title', __('field.earnings'))
+@section('heading', __('field.my_earnings'))
+@section('subheading', __('field.earnings_sub', ['month' => now()->translatedFormat('F Y')]))
 @php
     $pct = fn ($v) => rtrim(rtrim(number_format((float) $v, 2), '0'), '.');
     $toneFor = fn (string $status) => match ($status) {
@@ -12,7 +12,7 @@
 @endphp
 @section('content')
     <a class="f-btn f-btn-ghost f-btn-block" style="margin-bottom:12px" href="{{ route('field.collections') }}">
-        <i data-lucide="banknote"></i> Money collected from shops
+        <i data-lucide="banknote"></i> {{ __('field.money_from_shops') }}
     </a>
     <div class="f-kpis five">
         <div class="f-kpi tone-violet">
@@ -50,57 +50,67 @@
         </div>
     </div>
 
-    <div class="f-grid-main">
-        <section class="f-panel">
-            <div class="f-panel-head">
-                <h2><span class="f-ico tone-green"><i data-lucide="list"></i></span>Commission history</h2>
-                <span class="f-muted f-small">Latest {{ $commissions->count() }}</span>
-            </div>
-            <div class="f-table-wrap f-desktop-only">
-                <table class="f-table">
-                    <thead><tr><th>Date</th><th>Type</th><th>Shop</th><th class="num">Base</th><th class="num">Rate</th><th class="num">Commission</th><th>Status</th></tr></thead>
-                    <tbody>
-                        @forelse ($commissions as $commission)
-                            <tr>
-                                <td>{{ $commission->created_at?->format('d M Y') }}</td>
-                                <td><span class="strong">{{ $commission->typeLabel() }}</span></td>
-                                <td>{{ $commission->payment?->shop?->name ?? $commission->order?->shop?->name ?? '—' }}</td>
-                                <td class="num">{{ \App\Support\DemoData::taka($commission->base_amount) }}</td>
-                                <td class="num">{{ $pct($commission->rate_percent) }}%</td>
-                                <td class="num strong">{{ \App\Support\DemoData::taka($commission->commission_amount) }}</td>
-                                <td><span class="f-status {{ $toneFor($commission->status) }}">{{ $commission->statusLabel() }}</span></td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="7" class="empty">No commission yet. It appears after the office verifies a shop payment on your orders.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            <div class="f-panel-body f-mobile-only">
-                @forelse ($commissions as $commission)
-                    @php $shopName = $commission->payment?->shop?->name ?? $commission->order?->shop?->name; @endphp
-                    <div class="f-order">
-                        <div class="f-order-main">
-                            <div class="f-order-top">
-                                <strong>{{ $commission->typeLabel() }}{{ $shopName ? ' · '.$shopName : '' }}</strong>
-                                <span class="f-order-amt">{{ \App\Support\DemoData::taka($commission->commission_amount) }}</span>
-                            </div>
-                            <div class="f-order-sub">
-                                <span>{{ $pct($commission->rate_percent) }}% of {{ \App\Support\DemoData::taka($commission->base_amount) }} · {{ $commission->created_at?->format('d M') }}</span>
-                                <span class="f-status {{ $toneFor($commission->status) }}">{{ $commission->statusLabel() }}</span>
-                            </div>
+    <section class="f-panel">
+        <div class="f-panel-head">
+            <h2><span class="f-ico tone-green"><i data-lucide="list"></i></span>{{ __('field.commission_history') }}</h2>
+            <span class="f-muted f-small">{{ __('field.latest_n', ['count' => $commissions->count()]) }}</span>
+        </div>
+        <div class="f-table-wrap f-desktop-only">
+            <table class="f-table f-table-earn">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th class="shop">Shop</th>
+                        <th class="num">Base</th>
+                        <th class="num">Rate</th>
+                        <th class="num">Commission</th>
+                        <th class="status">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($commissions as $commission)
+                        <tr>
+                            <td>{{ $commission->created_at?->format('d M Y') }}</td>
+                            <td><span class="strong">{{ $commission->typeLabel() }}</span></td>
+                            <td class="shop">{{ $commission->payment?->shop?->name ?? $commission->order?->shop?->name ?? '—' }}</td>
+                            <td class="num">{{ \App\Support\DemoData::taka($commission->base_amount) }}</td>
+                            <td class="num">{{ $pct($commission->rate_percent) }}%</td>
+                            <td class="num strong">{{ \App\Support\DemoData::taka($commission->commission_amount) }}</td>
+                            <td class="status"><span class="f-status {{ $toneFor($commission->status) }}">{{ $commission->statusLabel() }}</span></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7" class="empty">No commission yet. It appears after the office verifies a shop payment on your orders.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="f-panel-body f-mobile-only">
+            @forelse ($commissions as $commission)
+                @php $shopName = $commission->payment?->shop?->name ?? $commission->order?->shop?->name; @endphp
+                <div class="f-order">
+                    <div class="f-order-main">
+                        <div class="f-order-top">
+                            <strong>{{ $commission->typeLabel() }}{{ $shopName ? ' · '.$shopName : '' }}</strong>
+                            <span class="f-order-amt">{{ \App\Support\DemoData::taka($commission->commission_amount) }}</span>
+                        </div>
+                        <div class="f-order-sub">
+                            <span>{{ $pct($commission->rate_percent) }}% of {{ \App\Support\DemoData::taka($commission->base_amount) }} · {{ $commission->created_at?->format('d M') }}</span>
+                            <span class="f-status {{ $toneFor($commission->status) }}">{{ $commission->statusLabel() }}</span>
                         </div>
                     </div>
-                @empty
-                    <div class="f-empty">
-                        <i data-lucide="wallet"></i>
-                        <strong>No commission yet</strong>
-                        It appears after the office verifies a shop payment on your orders.
-                    </div>
-                @endforelse
-            </div>
-        </section>
+                </div>
+            @empty
+                <div class="f-empty">
+                    <i data-lucide="wallet"></i>
+                    <strong>No commission yet</strong>
+                    It appears after the office verifies a shop payment on your orders.
+                </div>
+            @endforelse
+        </div>
+    </section>
 
+    <div class="f-split">
         <section class="f-panel">
             <div class="f-panel-head">
                 <h2><span class="f-ico tone-violet"><i data-lucide="banknote"></i></span>Salary payments</h2>

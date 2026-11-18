@@ -37,7 +37,7 @@ class FaviconTest extends TestCase
     public function test_header_and_footer_use_the_full_logo_not_the_favicon_crop(): void
     {
         $html = $this->get(route('site.home'))->assertOk()->getContent();
-        $logo = asset('images/logo.png');
+        $logo = app(SiteContent::class)->logoUrl();
 
         $this->assertSame(2, substr_count($html, 'src="'.e($logo).'"'));
         $this->assertStringNotContainsString('src="'.route('favicon.png', ['size' => 32]), $html);

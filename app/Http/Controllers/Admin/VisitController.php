@@ -50,6 +50,7 @@ class VisitController extends Controller
                 ShopVisit::OUTCOME_NO_ORDER => 'No order',
                 ShopVisit::OUTCOME_CLOSED => 'Shop closed',
                 ShopVisit::OUTCOME_FOLLOW_UP => 'Follow-up needed',
+                ShopVisit::OUTCOME_CANCELLED => 'Opened by mistake',
                 ShopVisit::OUTCOME_IN_PROGRESS => 'In progress',
             ],
         ]);

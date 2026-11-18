@@ -139,19 +139,19 @@ class Order extends Model
     public function statusLabel(): string
     {
         return match ($this->status) {
-            self::STATUS_DRAFT => 'Draft',
-            self::STATUS_PENDING_AUDIT => 'Pending Super Admin Audit',
+            self::STATUS_DRAFT => __('field.status.draft'),
+            self::STATUS_PENDING_AUDIT => __('field.status.pending_audit'),
             self::STATUS_AWAITING_ADVANCE => $this->isAdvancePaid()
-                ? 'Advance Paid · Ready to Approve'
-                : 'Awaiting Advance Payment',
+                ? __('field.status.advance_paid')
+                : __('field.status.awaiting_advance'),
             self::STATUS_APPROVED,
             self::STATUS_PICKING,
             self::STATUS_PICKED,
             self::STATUS_PACKED,
-            self::STATUS_DISPATCHED => 'Approved',
-            self::STATUS_DELIVERED => 'Delivered',
-            self::STATUS_REJECTED => 'Rejected',
-            self::STATUS_CANCELLED => 'Cancelled',
+            self::STATUS_DISPATCHED => __('field.status.approved'),
+            self::STATUS_DELIVERED => __('field.status.delivered'),
+            self::STATUS_REJECTED => __('field.status.rejected'),
+            self::STATUS_CANCELLED => __('field.status.cancelled'),
             default => ucfirst(str_replace('_', ' ', $this->status)),
         };
     }
@@ -164,9 +164,9 @@ class Order extends Model
     public function simpleStatus(): array
     {
         return match ($this->status) {
-            self::STATUS_PENDING_AUDIT, self::STATUS_DRAFT, self::STATUS_AWAITING_ADVANCE => ['label' => 'Waiting for approval', 'tone' => 'amber', 'step' => 1],
-            self::STATUS_APPROVED, self::STATUS_PICKING, self::STATUS_PICKED, self::STATUS_PACKED, self::STATUS_DISPATCHED => ['label' => 'Approved', 'tone' => 'blue', 'step' => 2],
-            self::STATUS_DELIVERED => ['label' => 'Delivered', 'tone' => 'green', 'step' => 3],
+            self::STATUS_PENDING_AUDIT, self::STATUS_DRAFT, self::STATUS_AWAITING_ADVANCE => ['label' => __('field.status.waiting_approval'), 'tone' => 'amber', 'step' => 1],
+            self::STATUS_APPROVED, self::STATUS_PICKING, self::STATUS_PICKED, self::STATUS_PACKED, self::STATUS_DISPATCHED => ['label' => __('field.status.approved'), 'tone' => 'blue', 'step' => 2],
+            self::STATUS_DELIVERED => ['label' => __('field.status.delivered'), 'tone' => 'green', 'step' => 3],
             self::STATUS_REJECTED => ['label' => 'Rejected', 'tone' => 'red', 'step' => 0],
             self::STATUS_CANCELLED => ['label' => 'Cancelled', 'tone' => 'gray', 'step' => 0],
             default => ['label' => $this->statusLabel(), 'tone' => 'gray', 'step' => 0],

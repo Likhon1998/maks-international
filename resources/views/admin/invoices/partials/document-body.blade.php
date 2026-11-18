@@ -15,8 +15,13 @@
 
     <div class="inv-doc-head">
         <div class="inv-doc-head-left">
-            <div class="inv-doc-brand">{{ $site->siteName() }}</div>
-            <div class="inv-doc-muted">Wholesale · Bangladesh · Asia/Dhaka</div>
+            <div class="inv-doc-brand-row">
+                <img class="inv-doc-logo" src="{{ $site->logoUrl() }}" alt="{{ $site->siteName() }}">
+                <div>
+                    <div class="inv-doc-brand">{{ $site->siteName() }}</div>
+                    <div class="inv-doc-muted">Wholesale · Bangladesh · Asia/Dhaka</div>
+                </div>
+            </div>
         </div>
         <div class="inv-doc-head-right">
             <div class="inv-doc-title">{{ $kind }}</div>

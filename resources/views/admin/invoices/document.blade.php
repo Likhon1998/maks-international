@@ -29,7 +29,9 @@
         }
         .inv-doc-head-left, .inv-doc-head-right { display: table-cell; vertical-align: top; width: 50%; }
         .inv-doc-head-right { text-align: right; }
-        .inv-doc-brand { font-size: 18px; font-weight: 700; color: #312e81; }
+        .inv-doc-brand-row { display: table; }
+        .inv-doc-logo { display: table-cell; vertical-align: middle; width: 34px; height: 34px; object-fit: contain; margin-right: 8px; border-radius: 50%; background: #fff; }
+        .inv-doc-brand { font-size: 18px; font-weight: 700; color: #0B1220; }
         .inv-doc-muted { color: #64748b; font-size: 9px; }
         .inv-doc-title { font-size: 13px; font-weight: 700; margin: 0 0 2px; text-transform: uppercase; letter-spacing: .04em; color: #312e81; }
         .inv-doc-number { font-size: 12px; font-weight: 700; margin-bottom: 3px; }

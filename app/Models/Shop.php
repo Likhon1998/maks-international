@@ -52,7 +52,11 @@ class Shop extends Model
             return null;
         }
 
-        return Storage::disk('public')->url($this->photo_path);
+        if (! Storage::disk('public')->exists($this->photo_path)) {
+            return null;
+        }
+
+        return asset('storage/'.$this->photo_path);
     }
 
     public function mapUrl(): ?string

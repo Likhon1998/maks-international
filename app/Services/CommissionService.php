@@ -94,7 +94,8 @@ class CommissionService
                 'type' => Commission::TYPE_COLLECTION,
                 'year' => $year,
                 'month' => $month,
-                'base_amount' => $payment->amount,
+                // Store the same base used to compute commission_amount (basis may differ from payment amount).
+                'base_amount' => round($baseAmount, 2),
                 'rate_percent' => $rate,
                 'commission_amount' => $amount,
                 'status' => Commission::STATUS_ACCRUED,

@@ -18,6 +18,9 @@ class ShopVisit extends Model
 
     public const OUTCOME_FOLLOW_UP = 'follow_up';
 
+    /** Check-in opened by mistake — not a real shop visit. */
+    public const OUTCOME_CANCELLED = 'cancelled';
+
     protected $fillable = [
         'salesman_id', 'shop_id', 'checked_in_at', 'checked_out_at',
         'purpose', 'outcome', 'notes', 'photo_path', 'latitude', 'longitude', 'order_id',
@@ -69,7 +72,12 @@ class ShopVisit extends Model
             return null;
         }
 
-        return Storage::disk('public')->url($this->photo_path);
+        if (! Storage::disk('public')->exists($this->photo_path)) {
+            return null;
+        }
+
+        // Relative URL so thumbs work even when APP_URL host differs from the browser.
+        return asset('storage/'.$this->photo_path);
     }
 
     public function outcomeLabel(): string
@@ -79,8 +87,14 @@ class ShopVisit extends Model
             self::OUTCOME_NO_ORDER => 'No order',
             self::OUTCOME_CLOSED => 'Shop closed',
             self::OUTCOME_FOLLOW_UP => 'Follow-up needed',
+            self::OUTCOME_CANCELLED => 'Opened by mistake',
             default => 'In progress',
         };
+    }
+
+    public function countsAsRealVisit(): bool
+    {
+        return ! in_array($this->outcome, [self::OUTCOME_CANCELLED], true);
     }
 
     public function isAccessibleBy(User $user): bool

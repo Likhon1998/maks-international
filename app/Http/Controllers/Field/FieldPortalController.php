@@ -754,7 +754,13 @@ class FieldPortalController extends Controller
             $visit = $this->closeVisitFromRequest($request, $visit);
         }
 
-        $label = $visit->fresh()?->outcomeLabel() ?? 'Saved';
+        $fresh = $visit->fresh();
+        if ($fresh?->outcome === ShopVisit::OUTCOME_CANCELLED) {
+            return redirect($to)
+                ->with('success', __('field.visit_ignored', ['shop' => $visit->shop?->name]));
+        }
+
+        $label = $fresh?->outcomeLabel() ?? 'Saved';
 
         return redirect($to)
             ->with('success', 'Visit at '.$visit->shop?->name.' saved · '.$label.'.');
@@ -906,12 +912,16 @@ class FieldPortalController extends Controller
 
         $baki = $order->fresh(['invoice', 'advanceInvoice'])->collectibleBalance();
         if ($amount > 0.009) {
-            $msg = 'Collected ৳ '.number_format($amount, 2).'.';
+            $msg = __('field.collected_flash', ['amount' => number_format($amount, 2)]);
             $msg .= $baki > 0.009
-                ? ' Baki ৳ '.number_format($baki, 2).' left — collect whenever they have cash.'
-                : ' Bill cleared. Office will confirm.';
+                ? __('field.baki_left_flash', ['amount' => number_format($baki, 2)])
+                : __('field.bill_cleared_flash');
         } else {
-            $msg = 'Left as baki ৳ '.number_format($baki, 2).'. Collect later when the owner has cash.';
+            $msg = __('field.left_as_baki_flash', ['amount' => number_format($baki, 2)]);
+        }
+
+        if ($request->input('redirect') === 'dues' && $order->shop_id) {
+            return redirect()->route('field.dues.shop', $order->shop_id)->with('success', $msg);
         }
 
         return redirect()->route('field.orders.show', $order)->with('success', $msg);
@@ -959,6 +969,27 @@ class FieldPortalController extends Controller
             'youCollected' => round((float) $people->sum('you_collected'), 2),
             'bakiTotal' => round((float) $people->sum('baki'), 2),
         ]);
+    }
+
+    public function dues(Request $request)
+    {
+        $user = $request->user();
+        $dues = $this->collections->openDuesByShop($user, $request->search);
+
+        return view('field.dues', [
+            'dues' => $dues,
+            'bakiTotal' => round((float) $dues->sum('baki'), 2),
+            'shopCount' => $dues->count(),
+            'collectableTotal' => round((float) $dues->sum('collectable'), 2),
+        ]);
+    }
+
+    public function duesShop(Request $request, Shop $shop)
+    {
+        $row = $this->collections->openDuesForShop($request->user(), $shop);
+        abort_unless($row !== null, 403);
+
+        return view('field.dues-shop', $row);
     }
 
     private function salesmanCanAccessOrder(User $user, Order $order): bool
@@ -1243,6 +1274,7 @@ class FieldPortalController extends Controller
     {
         $lastVisits = ShopVisit::query()
             ->where('salesman_id', $user->id)
+            ->where('outcome', '!=', ShopVisit::OUTCOME_CANCELLED)
             ->selectRaw('shop_id, MAX(checked_in_at) as last_at')
             ->groupBy('shop_id')
             ->pluck('last_at', 'shop_id');
@@ -1350,6 +1382,15 @@ class FieldPortalController extends Controller
     private function closeVisitFromRequest(Request $request, ShopVisit $visit): ShopVisit
     {
         $visit->loadMissing('shop');
+
+        if (! $visit->order_id && $request->input('outcome') === ShopVisit::OUTCOME_CANCELLED) {
+            $request->validate([
+                'outcome' => ['required', 'in:cancelled'],
+            ]);
+
+            return $this->visits->cancelMistake($visit, $request->user());
+        }
+
         $needsPhoto = $visit->needsPhotoEvidence();
 
         $data = $request->validate([

@@ -1,7 +1,10 @@
 @extends('field.layouts.app')
-@section('title', 'Collected money')
-@section('heading', 'Collected money')
-@section('subheading', 'From which person you received how much')
+@section('title', __('field.collected_title'))
+@section('heading', __('field.collected_title'))
+@section('subheading', __('field.collected_sub'))
+@section('actions')
+    <a class="f-btn f-btn-primary f-btn-sm" href="{{ route('field.dues') }}"><i data-lucide="scale"></i> {{ __('field.collect_baki') }}</a>
+@endsection
 @section('content')
     <div class="f-kpis">
         <div class="f-kpi tone-green">
@@ -41,8 +44,8 @@
                 <table class="f-table">
                     <thead>
                         <tr>
-                            <th>Person</th>
-                            <th>Shop</th>
+                            <th class="wrap">Person</th>
+                            <th class="wrap">Shop</th>
                             <th class="num">Received</th>
                             <th class="num">You collected</th>
                             <th class="num">Baki</th>
@@ -52,11 +55,11 @@
                     <tbody>
                         @forelse ($people as $row)
                             <tr data-search="{{ strtolower($row['person'].' '.$row['shop']->name.' '.$row['shop']->code) }}" x-show="!q || ($el.dataset.search || '').includes(q.toLowerCase())">
-                                <td>
+                                <td class="wrap">
                                     <span class="strong">{{ $row['person'] }}</span>
                                     <span class="sub">{{ $row['receipts'] }} receipt{{ $row['receipts'] === 1 ? '' : 's' }}</span>
                                 </td>
-                                <td>{{ $row['shop']->name }}</td>
+                                <td class="wrap">{{ $row['shop']->name }}</td>
                                 <td class="num strong">{{ \App\Support\DemoData::taka($row['received']) }}</td>
                                 <td class="num">{{ \App\Support\DemoData::taka($row['you_collected']) }}</td>
                                 <td class="num" style="{{ $row['baki'] > 0.009 ? 'color:var(--f-red);font-weight:700' : '' }}">{{ \App\Support\DemoData::taka($row['baki']) }}</td>
@@ -102,18 +105,18 @@
         </div>
         <div class="f-table-wrap f-desktop-only">
             <table class="f-table">
-                <thead><tr><th>Date</th><th>From</th><th>Method</th><th class="num">Amount</th><th>Collected by</th><th>Status</th></tr></thead>
+                <thead><tr><th>Date</th><th class="wrap">From</th><th>Method</th><th class="num">Amount</th><th class="wrap">Collected by</th><th>Status</th></tr></thead>
                 <tbody>
                     @forelse ($receipts as $payment)
                         <tr>
                             <td>{{ $payment->paid_at?->format('d M Y') ?: $payment->created_at?->format('d M Y') }}</td>
-                            <td>
+                            <td class="wrap">
                                 <span class="strong">{{ $payment->shop?->owner_name ?: $payment->shop?->name }}</span>
                                 <span class="sub">{{ $payment->shop?->name }}</span>
                             </td>
                             <td>{{ $payment->methodLabel() }}</td>
                             <td class="num strong">{{ \App\Support\DemoData::taka($payment->amount) }}</td>
-                            <td>{{ $payment->creator?->name ?: '—' }}</td>
+                            <td class="wrap">{{ $payment->creator?->name ?: '—' }}</td>
                             <td><span class="f-status {{ $payment->status === \App\Models\Payment::STATUS_VERIFIED ? 'green' : 'amber' }}">{{ $payment->statusLabel() }}</span></td>
                         </tr>
                     @empty

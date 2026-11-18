@@ -17,7 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
         $middleware->web(prepend: [\App\Http\Middleware\AlignRequestOrigin::class]);
-        $middleware->web(append: [\Illuminate\Session\Middleware\AuthenticateSession::class]);
+        $middleware->web(append: [
+            \App\Http\Middleware\SetLocale::class,
+            \Illuminate\Session\Middleware\AuthenticateSession::class,
+        ]);
         $middleware->redirectGuestsTo(fn (\Illuminate\Http\Request $request) => match (true) {
             $request->is('field', 'field/*') => route('field.login'),
             $request->is('portal', 'portal/*') => route('portal.login'),

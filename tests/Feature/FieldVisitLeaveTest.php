@@ -45,7 +45,7 @@ class FieldVisitLeaveTest extends TestCase
             ->get(route('field.dashboard'))
             ->assertOk()
             ->assertSee("I'm leaving")
-            ->assertSee("You're at", false);
+            ->assertSee("You're at");
 
         Storage::fake('public');
 
@@ -82,6 +82,8 @@ class FieldVisitLeaveTest extends TestCase
         $this->assertNotEmpty($visit->photo_path);
         $this->assertStringContainsString('charger', (string) $visit->notes);
         Storage::disk('public')->assertExists($visit->photo_path);
+        $this->assertNotNull($visit->photoUrl());
+        $this->assertStringContainsString('/storage/'.$visit->photo_path, $visit->photoUrl());
         $this->assertFalse(
             ShopVisit::query()
                 ->where('salesman_id', $salesman->id)
@@ -135,5 +137,68 @@ class FieldVisitLeaveTest extends TestCase
 
         $this->assertNull($visit->fresh()->checked_out_at);
         $this->assertSame(ShopVisit::OUTCOME_IN_PROGRESS, $visit->fresh()->outcome);
+    }
+
+    public function test_opened_by_mistake_cancels_without_notes_or_photo_and_shop_stays_unvisited(): void
+    {
+        $salesman = User::where('email', 'karim@field.local')->firstOrFail();
+        $shop = Shop::query()->where('status', Shop::STATUS_ACTIVE)->firstOrFail();
+        $shop->update(['assigned_salesman_id' => $salesman->id]);
+
+        ShopVisit::query()
+            ->where('salesman_id', $salesman->id)
+            ->whereNull('checked_out_at')
+            ->update(['checked_out_at' => now()]);
+
+        // Older real visit yesterday — today should still be "not visited" after cancel.
+        ShopVisit::query()->create([
+            'shop_id' => $shop->id,
+            'salesman_id' => $salesman->id,
+            'checked_in_at' => now()->subDay(),
+            'checked_out_at' => now()->subDay()->addHour(),
+            'purpose' => 'Order collection',
+            'outcome' => ShopVisit::OUTCOME_NO_ORDER,
+            'notes' => 'Yesterday visit',
+        ]);
+
+        $visit = ShopVisit::query()->create([
+            'shop_id' => $shop->id,
+            'salesman_id' => $salesman->id,
+            'checked_in_at' => now(),
+            'purpose' => 'Order collection',
+            'outcome' => ShopVisit::OUTCOME_IN_PROGRESS,
+        ]);
+
+        $this->actingAs($salesman)
+            ->get(route('field.visit.show', $visit))
+            ->assertOk()
+            ->assertSee('Opened by mistake', false);
+
+        $this->actingAs($salesman)
+            ->post(route('field.visit.leave', $visit), [
+                'outcome' => ShopVisit::OUTCOME_CANCELLED,
+                'redirect' => 'shops',
+            ])
+            ->assertRedirect(route('field.shops'))
+            ->assertSessionHas('success');
+
+        $visit->refresh();
+        $this->assertNotNull($visit->checked_out_at);
+        $this->assertSame(ShopVisit::OUTCOME_CANCELLED, $visit->outcome);
+        $this->assertFalse(
+            ShopVisit::query()
+                ->where('salesman_id', $salesman->id)
+                ->whereNull('checked_out_at')
+                ->exists()
+        );
+
+        $this->assertFalse(
+            ShopVisit::query()
+                ->where('salesman_id', $salesman->id)
+                ->where('shop_id', $shop->id)
+                ->where('outcome', '!=', ShopVisit::OUTCOME_CANCELLED)
+                ->whereDate('checked_in_at', today())
+                ->exists()
+        );
     }
 }

@@ -429,9 +429,10 @@ class FieldOrderBakiTest extends TestCase
         $this->assertEqualsWithDelta($prevBefore, $order->previousShopBaki(), 0.05);
 
         $page = $this->actingAs($salesman)->get(route('field.orders.show', $order))->assertOk();
-        $page->assertSee('This order baki', false);
+        $page->assertSee('Open on bill', false);
         $page->assertSee('Waiting confirm', false);
         $page->assertSee('waiting for office to confirm', false);
+        $page->assertDontSee('Collect now', false);
     }
 
     private function dispatchAssignedTo(Order $order, User $salesman, User $admin): void

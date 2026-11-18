@@ -34,7 +34,7 @@
             <table class="data">
                 <thead>
                     <tr>
-                        <th>Product</th>
+                        <th class="name">Product</th>
                         <th class="col-hide-md">Category</th>
                         <th class="num">On hand</th>
                         <th class="num col-hide-lg">Available</th>
@@ -51,7 +51,7 @@
                             $stockClass = $available <= 0 ? 'stock-out' : ($available <= (int) $product->minimum_stock ? 'stock-low' : 'stock-ok');
                         @endphp
                         <tr>
-                            <td>
+                            <td class="name">
                                 <div class="product-cell">
                                     <x-product-thumb :product="$product" :size="56" />
                                     <div>

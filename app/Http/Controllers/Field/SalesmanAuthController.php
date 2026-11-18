@@ -17,8 +17,16 @@ class SalesmanAuthController
 
     public function showLogin()
     {
-        if (Auth::check() && Auth::user()->portal === User::PORTAL_SALESMAN) {
+        $user = Auth::user();
+        if ($user?->portal === User::PORTAL_SALESMAN) {
             return redirect()->route('field.dashboard');
+        }
+
+        // Avoid a half-signed-in admin/shop session sitting behind the field form.
+        if ($user) {
+            Auth::logout();
+            request()->session()->invalidate();
+            request()->session()->regenerateToken();
         }
 
         return view('field.auth.login');
@@ -55,7 +63,7 @@ class SalesmanAuthController
             Auth::logout();
 
             throw ValidationException::withMessages([
-                'email' => 'Your salesman profile is inactive.',
+                'email' => 'Your field sales profile is inactive. Contact your manager.',
             ]);
         }
 
@@ -65,6 +73,17 @@ class SalesmanAuthController
         $this->auditLogger->log('auth', 'login', "Salesman {$user->email} signed in", $user, null, null, $user);
 
         return redirect()->intended(route('field.dashboard'));
+    }
+
+    public function setLocale(Request $request)
+    {
+        $data = $request->validate([
+            'locale' => ['required', 'in:en,bn'],
+        ]);
+
+        $request->session()->put('locale', $data['locale']);
+
+        return back();
     }
 
     public function logout(Request $request)

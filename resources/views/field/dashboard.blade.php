@@ -2,7 +2,7 @@
 @section('title', 'Home')
 @php
     $hour = (int) now()->format('G');
-    $greeting = $hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening');
+    $greeting = $hour < 12 ? __('field.good_morning') : ($hour < 17 ? __('field.good_afternoon') : __('field.good_evening'));
     $firstName = \Illuminate\Support\Str::before(auth()->user()->name, ' ') ?: auth()->user()->name;
     $toGo = max(0, $target - $achieved);
     $trendMax = max(1, $trend->max('total'));
@@ -13,16 +13,16 @@
         : $routeShops->take(5);
 @endphp
 @section('heading', $greeting.', '.$firstName)
-@section('subheading', now()->format('l, d F').' · '.$visitedCount.'/'.$shopCount.' shops today')
+@section('subheading', now()->translatedFormat('l, d F').' · '.__('field.shops_today', ['visited' => $visitedCount, 'total' => $shopCount]))
 @section('actions')
-    <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.shops.create') }}"><i data-lucide="plus"></i> Add shop</a>
-    <a class="f-btn f-btn-primary f-btn-sm" href="{{ route('field.orders.create') }}"><i data-lucide="shopping-bag"></i> New order</a>
+    <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.shops.create') }}"><i data-lucide="plus"></i> {{ __('field.add_shop') }}</a>
+    <a class="f-btn f-btn-primary f-btn-sm" href="{{ route('field.orders.create') }}"><i data-lucide="shopping-bag"></i> {{ __('field.new_order') }}</a>
 @endsection
 @section('content')
     <div class="f-home">
         <div class="f-quick f-mobile-only">
-            <a class="f-btn f-btn-primary" href="{{ route('field.orders.create') }}"><i data-lucide="shopping-bag"></i> New order</a>
-            <a class="f-btn f-btn-ghost" href="{{ route('field.shops.create') }}"><i data-lucide="plus"></i> Add shop</a>
+            <a class="f-btn f-btn-primary" href="{{ route('field.orders.create') }}"><i data-lucide="shopping-bag"></i> {{ __('field.new_order') }}</a>
+            <a class="f-btn f-btn-ghost" href="{{ route('field.shops.create') }}"><i data-lucide="plus"></i> {{ __('field.add_shop') }}</a>
         </div>
 
         @include('field.partials.login-todo')
@@ -30,7 +30,7 @@
         @if (! empty($targetMet))
             <div class="f-flash ok">
                 <i data-lucide="check-circle-2"></i>
-                <span>Congratulations — you hit your monthly sales target!</span>
+                <span>{{ __('field.target_hit') }}</span>
             </div>
         @endif
 
@@ -38,7 +38,7 @@
         <div class="f-home-hero f-kpi tone-violet">
             <div class="f-kpi-top">
                 <span class="f-ico"><i data-lucide="trending-up"></i></span>
-                <span class="f-kpi-label">Sales this month</span>
+                <span class="f-kpi-label">{{ __('field.sales_this_month') }}</span>
                 @if ($progress !== null)<span class="f-kpi-badge">{{ $progress }}%</span>@endif
             </div>
             <div class="f-kpi-value">{{ \App\Support\DemoData::taka($monthTotal) }}</div>
@@ -47,10 +47,10 @@
                     Delivered {{ \App\Support\DemoData::taka($achieved) }} of {{ \App\Support\DemoData::taka($target) }}
                     · @if ($toGo > 0)<b>{{ \App\Support\DemoData::taka($toGo) }}</b> to go · {{ $daysLeft }}d left @else <b>Target reached</b> @endif
                 @else
-                    No target set for this month
+                    {{ __('field.no_target') }}
                 @endif
                 @if (($shopsOutstanding ?? 0) > 0)
-                    · Baki {{ \App\Support\DemoData::taka($shopsOutstanding) }}
+                    · {{ __('field.baki') }} {{ \App\Support\DemoData::taka($shopsOutstanding) }}
                 @endif
             </div>
             <div class="f-kpi-bar"><span style="width: {{ max(2, $progress ?? 0) }}%"></span></div>
@@ -58,24 +58,24 @@
 
         <div class="f-kpis f-home-stats">
             <a class="f-kpi tone-green" href="{{ route('field.earnings') }}">
-                <div class="f-kpi-top"><span class="f-ico"><i data-lucide="wallet"></i></span><span class="f-kpi-label">Commission</span></div>
+                <div class="f-kpi-top"><span class="f-ico"><i data-lucide="wallet"></i></span><span class="f-kpi-label">{{ __('field.commission') }}</span></div>
                 <div class="f-kpi-value">{{ \App\Support\DemoData::taka($monthCommission) }}</div>
-                <div class="f-kpi-meta">This month</div>
+                <div class="f-kpi-meta">{{ __('field.this_month') }}</div>
             </a>
             <a class="f-kpi tone-blue" href="{{ route('field.visits') }}">
-                <div class="f-kpi-top"><span class="f-ico"><i data-lucide="map-pin"></i></span><span class="f-kpi-label">Visits today</span></div>
+                <div class="f-kpi-top"><span class="f-ico"><i data-lucide="map-pin"></i></span><span class="f-kpi-label">{{ __('field.visits_today') }}</span></div>
                 <div class="f-kpi-value">{{ $todayVisits }}</div>
-                <div class="f-kpi-meta">{{ $visitedCount }} shops · see daily log ›</div>
+                <div class="f-kpi-meta">{{ __('field.see_daily_log', ['count' => $visitedCount]) }}</div>
             </a>
             <div class="f-kpi tone-amber">
-                <div class="f-kpi-top"><span class="f-ico"><i data-lucide="shopping-bag"></i></span><span class="f-kpi-label">Orders today</span></div>
+                <div class="f-kpi-top"><span class="f-ico"><i data-lucide="shopping-bag"></i></span><span class="f-kpi-label">{{ __('field.orders_today') }}</span></div>
                 <div class="f-kpi-value">{{ $todayOrderCount }}</div>
                 <div class="f-kpi-meta"><b>{{ \App\Support\DemoData::taka($todayOrderTotal) }}</b></div>
             </div>
             <a class="f-kpi tone-rose" href="{{ route('field.orders', ['status' => 'waiting']) }}">
-                <div class="f-kpi-top"><span class="f-ico"><i data-lucide="hourglass"></i></span><span class="f-kpi-label">Waiting</span></div>
+                <div class="f-kpi-top"><span class="f-ico"><i data-lucide="hourglass"></i></span><span class="f-kpi-label">{{ __('field.waiting') }}</span></div>
                 <div class="f-kpi-value">{{ $waitingApproval }}</div>
-                <div class="f-kpi-meta">With the office</div>
+                <div class="f-kpi-meta">{{ __('field.with_office') }}</div>
             </a>
         </div>
 
@@ -120,7 +120,9 @@
                     @forelse ($todayVisitList as $dayVisit)
                         <a class="f-today-row" href="{{ route('field.visit.show', $dayVisit) }}">
                             @if ($dayVisit->photoUrl())
-                                <img src="{{ $dayVisit->photoUrl() }}" alt="">
+                                <img src="{{ $dayVisit->photoUrl() }}" alt="" loading="lazy"
+                                     onerror="this.style.display='none'; this.nextElementSibling?.classList.remove('is-hidden');">
+                                <span class="f-today-ph is-hidden"><i data-lucide="camera-off"></i></span>
                             @else
                                 <span class="f-today-ph {{ $dayVisit->needsPhotoEvidence() && ! $dayVisit->isOpen() ? 'miss' : '' }}"><i data-lucide="{{ $dayVisit->isOpen() ? 'store' : 'camera-off' }}"></i></span>
                             @endif
@@ -141,7 +143,9 @@
                     @forelse ($todayAddedList as $added)
                         <div class="f-today-row">
                             @if ($added->photoUrl())
-                                <img src="{{ $added->photoUrl() }}" alt="">
+                                <img src="{{ $added->photoUrl() }}" alt="" loading="lazy"
+                                     onerror="this.style.display='none'; this.nextElementSibling?.classList.remove('is-hidden');">
+                                <span class="f-today-ph is-hidden"><i data-lucide="store"></i></span>
                             @else
                                 <span class="f-today-ph"><i data-lucide="store"></i></span>
                             @endif
