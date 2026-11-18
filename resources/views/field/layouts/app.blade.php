@@ -23,7 +23,7 @@
     $user = auth()->user();
     $initials = collect(explode(' ', (string) $user?->name))->filter()->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->implode('');
     $onVisitPage = request()->routeIs('field.visit.show') && optional(request()->route('visit'))->id === $fieldOpenVisit?->id;
-    $moreActive = request()->routeIs('field.earnings', 'field.collections', 'field.dues*', 'field.notifications*', 'field.account.*', 'field.visits', 'field.partners*', 'field.announcements');
+    $moreActive = request()->routeIs('field.earnings', 'field.collections', 'field.dues*', 'field.notifications*', 'field.account.*', 'field.visits', 'field.announcements');
 @endphp
 <body class="f-app" x-data="{ moreOpen: false }" @keydown.escape.window="moreOpen = false">
     <div class="f-shell @hasSection('has-bar') has-bar @endif">
@@ -104,7 +104,7 @@
                 @if ($fieldOpenVisit)<span class="badge-dot" aria-label="{{ __('field.visit_in_progress') }}">1</span>@endif
             </a>
             <a href="{{ route('field.orders') }}" title="{{ __('field.orders') }}" class="tone-amber {{ request()->routeIs('field.orders*') ? 'active' : '' }}"><span class="f-nav-ico"><i data-lucide="receipt-text"></i></span><span class="f-nav-text">{{ __('field.orders') }}</span></a>
-            <a href="{{ route('field.deliveries') }}" title="{{ __('field.deliveries') }}" class="tone-sky {{ request()->routeIs('field.deliveries') ? 'active' : '' }}"><span class="f-nav-ico"><i data-lucide="truck"></i></span><span class="f-nav-text">{{ __('field.deliveries') }}</span></a>
+            <a href="{{ route('field.deliveries') }}" title="{{ __('field.deliveries') }}" class="tone-sky {{ request()->routeIs('field.deliveries*') ? 'active' : '' }}"><span class="f-nav-ico"><i data-lucide="truck"></i></span><span class="f-nav-text">{{ __('field.deliveries') }}</span></a>
             <a href="{{ route('field.dues') }}" title="{{ __('field.collect_baki') }}" class="f-nav-desk tone-rose {{ request()->routeIs('field.dues*') ? 'active' : '' }}"><span class="f-nav-ico"><i data-lucide="scale"></i></span><span class="f-nav-text">{{ __('field.collect_baki') }}</span></a>
 
             <button type="button" class="f-nav-more-btn tone-teal {{ $moreActive ? 'active' : '' }}" @click="moreOpen = true" aria-label="{{ __('field.more') }}">
@@ -113,7 +113,6 @@
             </button>
 
             <a href="{{ route('field.visits') }}" title="{{ __('field.visit_log') }}" class="f-nav-extra tone-blue {{ request()->routeIs('field.visits') ? 'active' : '' }}"><span class="f-nav-ico"><i data-lucide="clipboard-list"></i></span><span class="f-nav-text">{{ __('field.visit_log') }}</span></a>
-            <a href="{{ route('field.partners') }}" title="{{ __('field.partners') }}" class="f-nav-extra tone-teal {{ request()->routeIs('field.partners*') ? 'active' : '' }}"><span class="f-nav-ico"><i data-lucide="handshake"></i></span><span class="f-nav-text">{{ __('field.partners') }}</span></a>
             <a href="{{ route('field.announcements') }}" title="{{ __('field.news') }}" class="f-nav-extra tone-violet {{ request()->routeIs('field.announcements') ? 'active' : '' }}"><span class="f-nav-ico"><i data-lucide="megaphone"></i></span><span class="f-nav-text">{{ __('field.news') }}</span></a>
             <a href="{{ route('field.earnings') }}" title="{{ __('field.earnings') }}" class="f-nav-extra tone-green {{ request()->routeIs('field.earnings') ? 'active' : '' }}"><span class="f-nav-ico"><i data-lucide="wallet"></i></span><span class="f-nav-text">{{ __('field.earnings') }}</span></a>
             <a href="{{ route('field.collections') }}" title="{{ __('field.collected_money') }}" class="f-nav-extra tone-blue {{ request()->routeIs('field.collections') ? 'active' : '' }}"><span class="f-nav-ico"><i data-lucide="banknote"></i></span><span class="f-nav-text">{{ __('field.collected') }}</span></a>
@@ -123,6 +122,9 @@
                 <div class="f-avatar" aria-hidden="true">{{ strtoupper($initials ?: 'S') }}</div>
                 <div class="f-nav-user-text">
                     <b>{{ $user?->name }}</b>
+                    @if ($user?->email)
+                        <small class="f-nav-email" title="{{ $user->email }}">{{ $user->email }}</small>
+                    @endif
                     <small>{{ $fieldProfile?->employee_code ?: __('field.field_salesman') }}</small>
                 </div>
                 <a class="f-icon-btn" href="{{ route('field.account.password') }}" aria-label="{{ __('field.change_password') }}" title="{{ __('field.change_password') }}"><i data-lucide="key-round"></i></a>
@@ -147,15 +149,17 @@
         </div>
         <div class="f-more-head">
             <div class="f-avatar" aria-hidden="true">{{ strtoupper($initials ?: 'S') }}</div>
-            <div>
+            <div class="f-more-user">
                 <strong>{{ $user?->name }}</strong>
+                @if ($user?->email)
+                    <div class="f-more-email" title="{{ $user->email }}">{{ $user->email }}</div>
+                @endif
                 <div class="f-muted f-small">{{ $fieldProfile?->employee_code ?: __('field.field_salesman') }}</div>
             </div>
             @include('field.partials.locale-switch', ['class' => 'f-lang-more'])
         </div>
         <div class="f-more-grid">
             <a class="f-more-item" href="{{ route('field.visits') }}" @click="moreOpen = false"><span class="f-ico tone-blue"><i data-lucide="clipboard-list"></i></span>{{ __('field.visit_log') }}</a>
-            <a class="f-more-item" href="{{ route('field.partners') }}" @click="moreOpen = false"><span class="f-ico tone-teal"><i data-lucide="handshake"></i></span>{{ __('field.partners') }}</a>
             <a class="f-more-item" href="{{ route('field.announcements') }}" @click="moreOpen = false"><span class="f-ico tone-violet"><i data-lucide="megaphone"></i></span>{{ __('field.news') }}</a>
             <a class="f-more-item" href="{{ route('field.earnings') }}" @click="moreOpen = false"><span class="f-ico tone-green"><i data-lucide="wallet"></i></span>{{ __('field.earnings') }}</a>
             <a class="f-more-item" href="{{ route('field.dues') }}" @click="moreOpen = false"><span class="f-ico tone-rose"><i data-lucide="scale"></i></span>{{ __('field.collect_baki') }}</a>

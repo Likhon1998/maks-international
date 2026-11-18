@@ -284,7 +284,6 @@
 
     <div class="f-shop-foot">
         <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.shops.create') }}"><i data-lucide="plus"></i> Add a new shop</a>
-        <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.partners.create') }}"><i data-lucide="handshake"></i> Partner application</a>
         <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.shops') }}"><i data-lucide="store"></i> All shops</a>
     </div>
 @endsection

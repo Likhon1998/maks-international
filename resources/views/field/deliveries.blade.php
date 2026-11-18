@@ -8,45 +8,49 @@
 @endsection
 @section('content')
     @php
-        $tabs = [
-            'all' => 'All',
-            'assigned' => 'Assigned',
-            'out' => 'On the way',
-            'delivered' => 'Delivered',
-            'failed' => 'Failed',
+        $statusOptions = [
+            'all' => ['label' => 'All', 'count' => $counts['all']],
+            'assigned' => ['label' => 'Assigned', 'count' => $counts['assigned']],
+            'out' => ['label' => 'On the way', 'count' => $counts['out']],
+            'delivered' => ['label' => 'Delivered', 'count' => $counts['delivered']],
+            'failed' => ['label' => 'Failed', 'count' => $counts['failed']],
         ];
+        $activeKey = $filter ?? 'all';
+        $activeLabel = $statusOptions[$activeKey]['label'].' ('.$statusOptions[$activeKey]['count'].')';
     @endphp
 
-    <div class="f-kpis">
-        <a class="f-kpi tone-violet" href="{{ route('field.deliveries', ['status' => 'assigned']) }}">
-            <div class="f-kpi-top"><span class="f-ico"><i data-lucide="user-check"></i></span><span class="f-kpi-label">Assigned</span></div>
-            <div class="f-kpi-value">{{ $counts['assigned'] }}</div>
-            <div class="f-kpi-meta">Waiting to go out</div>
-        </a>
-        <a class="f-kpi tone-sky" href="{{ route('field.deliveries', ['status' => 'out']) }}">
-            <div class="f-kpi-top"><span class="f-ico"><i data-lucide="truck"></i></span><span class="f-kpi-label">On the way</span></div>
-            <div class="f-kpi-value">{{ $counts['out'] }}</div>
-            <div class="f-kpi-meta">Out for delivery</div>
-        </a>
-        <a class="f-kpi tone-green" href="{{ route('field.deliveries', ['status' => 'delivered']) }}">
-            <div class="f-kpi-top"><span class="f-ico"><i data-lucide="package-check"></i></span><span class="f-kpi-label">Delivered</span></div>
-            <div class="f-kpi-value">{{ $counts['delivered'] }}</div>
-            <div class="f-kpi-meta">Reached the shop</div>
-        </a>
-        <a class="f-kpi tone-rose" href="{{ route('field.deliveries', ['status' => 'failed']) }}">
-            <div class="f-kpi-top"><span class="f-ico"><i data-lucide="package-x"></i></span><span class="f-kpi-label">Failed</span></div>
-            <div class="f-kpi-value">{{ $counts['failed'] }}</div>
-            <div class="f-kpi-meta">Need follow-up</div>
-        </a>
-    </div>
+    <form class="f-del-toolbar" method="get" action="{{ route('field.deliveries') }}" role="search">
+        <div class="f-search">
+            <i data-lucide="search"></i>
+            <input
+                type="search"
+                name="q"
+                value="{{ $search }}"
+                placeholder="Search shop, delivery, order, phone"
+                autocomplete="off"
+                aria-label="Search deliveries"
+            >
+        </div>
+        <label class="f-del-status">
+            <span class="f-sr-only">Status</span>
+            <select name="status" aria-label="Filter by status" onchange="this.form.submit()">
+                @foreach ($statusOptions as $key => $opt)
+                    <option value="{{ $key === 'all' ? '' : $key }}" @selected($activeKey === $key)>
+                        {{ $opt['label'] }} ({{ $opt['count'] }})
+                    </option>
+                @endforeach
+            </select>
+            <i data-lucide="chevron-down" aria-hidden="true"></i>
+        </label>
+        @if ($search !== '' || $filter)
+            <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.deliveries') }}">Clear</a>
+        @endif
+        <noscript><button class="f-btn f-btn-primary f-btn-sm" type="submit">Apply</button></noscript>
+    </form>
 
-    <div class="f-filters">
-        @foreach ($tabs as $key => $label)
-            <a class="f-filter {{ ($filter ?? 'all') === $key ? 'active' : '' }}" href="{{ route('field.deliveries', $key === 'all' ? [] : ['status' => $key]) }}">
-                {{ $label }} <span class="n">{{ $counts[$key] ?? 0 }}</span>
-            </a>
-        @endforeach
-    </div>
+    @if ($search !== '')
+        <p class="f-muted f-small" style="margin:0 0 8px">Showing {{ $activeLabel }} matching “{{ $search }}”</p>
+    @endif
 
     <section class="f-panel f-desktop-only">
         <div class="f-table-wrap">
@@ -112,8 +116,8 @@
                     @empty
                         <tr>
                             <td colspan="8" class="empty">
-                                @if ($filter)
-                                    No deliveries in this list.
+                                @if ($search !== '' || $filter)
+                                    No deliveries match this search.
                                 @else
                                     No deliveries yet. When admin assigns a delivery to you, it shows up here.
                                 @endif
@@ -131,9 +135,9 @@
         @empty
             <div class="f-empty">
                 <i data-lucide="truck"></i>
-                <strong>{{ $filter ? 'No deliveries here' : 'No deliveries yet' }}</strong>
-                {{ $filter ? 'Try another filter.' : 'When admin assigns a delivery to you, it appears here.' }}
-                @unless ($filter)
+                <strong>{{ ($search !== '' || $filter) ? 'No matches' : 'No deliveries yet' }}</strong>
+                {{ ($search !== '' || $filter) ? 'Try another search or status.' : 'When admin assigns a delivery to you, it appears here.' }}
+                @unless ($search !== '' || $filter)
                     <a class="f-btn f-btn-primary" style="margin-top:12px" href="{{ route('field.orders') }}"><i data-lucide="receipt-text"></i> View orders</a>
                 @endunless
             </div>
@@ -156,3 +160,18 @@
         </div>
     @endif
 @endsection
+
+@push('scripts')
+<script>
+(() => {
+    const form = document.querySelector('.f-del-toolbar');
+    const input = form?.querySelector('input[name="q"]');
+    if (!form || !input) return;
+    let timer;
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => form.requestSubmit(), 350);
+    });
+})();
+</script>
+@endpush

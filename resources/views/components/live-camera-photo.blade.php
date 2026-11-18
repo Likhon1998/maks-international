@@ -35,11 +35,10 @@
         <button type="button" class="f-cam-launch" @click="openCamera()">
             <i data-lucide="camera"></i>
             <b>{{ $title }}</b>
-            <small>{{ $hint }}</small>
+            @if ($hint)
+                <small>{{ $hint }}</small>
+            @endif
         </button>
-        @if (! $required)
-            <p class="f-muted f-small" style="margin:8px 0 0;text-align:center">Optional — skip if not needed.</p>
-        @endif
     </div>
 
     <div class="f-cam-stage" x-show="open" x-cloak>
@@ -58,10 +57,9 @@
         <img :src="preview" alt="Captured photo">
         <div class="f-cam-actions">
             <button type="button" class="f-btn f-btn-ghost f-btn-sm" @click="retake()">
-                <i data-lucide="refresh-cw"></i> Retake live photo
+                <i data-lucide="refresh-cw"></i> Retake
             </button>
         </div>
-        <p class="f-muted f-small" style="margin:6px 0 0;text-align:center">Live camera capture only</p>
     </div>
 </div>
 

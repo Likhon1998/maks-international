@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Order;
-use App\Models\PartnerInquiry;
 use App\Models\Payment;
 use App\Models\ProductReturn;
 use App\Models\Shop;
@@ -89,17 +88,6 @@ class AppNotificationService
             $shop->name.' · '.($shop->city ?: 'No area').' · '.$shop->code.' · approved by salesman (ready for orders)',
             '/admin/shops/'.$shop->id,
             'shops',
-            'info',
-        );
-    }
-
-    public function partnerFromField(PartnerInquiry $inquiry, User $salesman): void
-    {
-        $this->notifyAdmins(
-            "Partner application from {$salesman->name}",
-            $inquiry->business_name.' · '.($inquiry->city ?: 'No area').' · submitted from the field',
-            '/admin/partner-leads?status=pending',
-            'partners',
             'info',
         );
     }

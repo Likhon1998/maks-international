@@ -8,7 +8,6 @@ use App\Models\Commission;
 use App\Models\CommissionRule;
 use App\Models\Delivery;
 use App\Models\Order;
-use App\Models\PartnerInquiry;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Reward;
@@ -25,7 +24,6 @@ use App\Services\DeliveryStockService;
 use App\Services\FulfilmentService;
 use App\Services\InvoiceService;
 use App\Services\OrderService;
-use App\Services\PartnerInquiryService;
 use App\Services\PaymentService;
 use App\Services\BangladeshGeoService;
 use App\Services\ShopService;
@@ -41,7 +39,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 
 class FieldPortalController extends Controller
 {
@@ -56,7 +53,6 @@ class FieldPortalController extends Controller
         private OrderService $orders,
         private ShopService $shops,
         private AppNotificationService $notifications,
-        private PartnerInquiryService $partnerInquiries,
         private TargetService $targets,
         private SalaryService $salaries,
         private PaymentService $payments,
@@ -506,149 +502,6 @@ class FieldPortalController extends Controller
         return back()->with('success', $shop->fresh()->name.' approved. You can take orders now.');
     }
 
-    public function partners(Request $request)
-    {
-        $applications = PartnerInquiry::query()
-            ->with('shop')
-            ->where('submitted_by', $request->user()->id)
-            ->latest()
-            ->paginate(15);
-
-        $byStatus = PartnerInquiry::query()->where('submitted_by', $request->user()->id)
-            ->selectRaw('status, COUNT(*) as n')->groupBy('status')->pluck('n', 'status');
-
-        return view('field.partners', [
-            'applications' => $applications,
-            'loginsToCreate' => $this->loginsToCreate($request->user()),
-            'counts' => [
-                'all' => (int) $byStatus->sum(),
-                'pending' => (int) (($byStatus[PartnerInquiry::STATUS_NEW] ?? 0) + ($byStatus[PartnerInquiry::STATUS_CONTACTED] ?? 0)),
-                'accepted' => (int) ($byStatus[PartnerInquiry::STATUS_CONVERTED] ?? 0),
-                'rejected' => (int) ($byStatus[PartnerInquiry::STATUS_CLOSED] ?? 0),
-            ],
-        ]);
-    }
-
-    public function partnerLogin(Request $request, PartnerInquiry $inquiry)
-    {
-        abort_unless($inquiry->submitted_by === $request->user()->id, 403);
-
-        if (! $inquiry->isAccepted() || ! $inquiry->shop) {
-            return redirect()->route('field.partners')->with('error', 'The office has not accepted '.$inquiry->business_name.' yet.');
-        }
-
-        if (! $request->session()->has('login_result') && ! $this->canSetPartnerLogin($request, $inquiry)) {
-            return redirect()->route('field.partners')->with('error', 'The login for '.$inquiry->business_name.' is already set. Ask the office to reset it.');
-        }
-
-        return view('field.partner-login', [
-            'inquiry' => $inquiry->load('shop'),
-            'result' => $request->session()->get('login_result'),
-        ]);
-    }
-
-    public function storePartnerLogin(Request $request, PartnerInquiry $inquiry)
-    {
-        abort_unless($inquiry->submitted_by === $request->user()->id, 403);
-        abort_unless($this->canSetPartnerLogin($request, $inquiry), 403, 'The login is already set. Ask the office to reset it.');
-
-        $data = $request->validate([
-            'email' => ['required', 'email', 'max:180'],
-            'password' => ['required', 'string', 'min:8', 'max:64'],
-        ], [
-            'password.min' => 'Use at least 8 characters so the account is safe.',
-        ]);
-
-        try {
-            $login = $this->partnerInquiries->setLogin($inquiry, $data['email'], $data['password'], $request->user());
-        } catch (RuntimeException $e) {
-            throw ValidationException::withMessages(['email' => $e->getMessage()]);
-        }
-
-        $request->session()->put("partner_login_set.{$inquiry->id}", now()->timestamp);
-
-        return redirect()->route('field.partners.login', $inquiry)->with('login_result', [
-            'ok' => $login['ok'],
-            'checks' => $login['checks'],
-            'email' => $login['user']->email,
-            'password' => $data['password'],
-            'chat_url' => $login['whatsapp']['chat_url'] ?? null,
-        ]);
-    }
-
-    public function createPartner(Request $request)
-    {
-        $shops = $this->partnerCandidateShops($request->user());
-
-        return view('field.partner-create', [
-            'shops' => $shops,
-            'selectedShop' => $shops->firstWhere('id', (int) $request->query('shop')),
-            'businessTypes' => PartnerInquiry::BUSINESS_TYPES,
-        ]);
-    }
-
-    public function storePartner(Request $request)
-    {
-        $user = $request->user();
-        $shopIds = $this->partnerCandidateShops($user)->modelKeys();
-
-        $data = $request->validate([
-            'shop_id' => ['nullable', 'integer', Rule::in($shopIds)],
-            'business_name' => ['required', 'string', 'max:180'],
-            'contact_name' => ['nullable', 'string', 'max:120'],
-            'email' => ['required', 'email', 'max:180'],
-            'phone' => ['required', 'string', 'max:20', new BangladeshPhone(required: true)],
-            'city' => ['nullable', 'string', 'max:80'],
-            'division' => ['nullable', 'string', 'max:80'],
-            'district' => ['nullable', 'string', 'max:80'],
-            'thana' => ['nullable', 'string', 'max:80'],
-            'post_office' => ['nullable', 'string', 'max:120'],
-            'location' => ['nullable', 'string', 'max:160'],
-            'business_type' => ['nullable', Rule::in(array_keys(PartnerInquiry::BUSINESS_TYPES))],
-            'message' => ['nullable', 'string', 'max:2000'],
-        ], [
-            'shop_id.in' => 'Pick one of your own shops, or leave it empty for a new business.',
-        ]);
-        $data['phone'] = BangladeshPhone::normalize($data['phone']);
-        $data['email'] = strtolower(trim($data['email']));
-        if (! empty($data['thana'])) {
-            $data['city'] = $data['thana'];
-        } elseif (! empty($data['district'])) {
-            $data['city'] = $data['district'];
-        }
-        unset($data['division'], $data['district'], $data['thana'], $data['post_office'], $data['location']);
-
-        if (User::query()->where('email', $data['email'])->where('portal', '!=', User::PORTAL_SHOP)->exists()) {
-            throw ValidationException::withMessages(['email' => 'This email belongs to a staff or salesman account. Use the shop owner\'s own email.']);
-        }
-
-        $duplicate = PartnerInquiry::query()
-            ->whereIn('status', [PartnerInquiry::STATUS_NEW, PartnerInquiry::STATUS_CONTACTED])
-            ->where(function ($q) use ($data) {
-                $q->where('email', $data['email'])->orWhere('phone', $data['phone']);
-                if (! empty($data['shop_id'])) {
-                    $q->orWhere('shop_id', $data['shop_id']);
-                }
-            })
-            ->first();
-        if ($duplicate) {
-            throw ValidationException::withMessages([
-                'email' => "{$duplicate->business_name} already has an application waiting (sent {$duplicate->created_at->format('d M')}).",
-            ]);
-        }
-
-        $inquiry = $this->partnerInquiries->submitFromField($data, $user);
-
-        try {
-            $this->notifications->partnerFromField($inquiry, $user);
-        } catch (\Throwable $e) {
-            report($e);
-        }
-
-        return redirect()->route('field.partners')
-            ->with('success', 'Partner application for '.$inquiry->business_name.' sent. The office will review it and send the owner their login.');
-    }
-
     public function checkIn(Request $request, Shop $shop)
     {
         $this->assertAssignedShop($request, $shop);
@@ -1003,16 +856,49 @@ class FieldPortalController extends Controller
     public function collections(Request $request)
     {
         $user = $request->user();
-        $people = $this->collections->byShop($user, $request->search);
-        $receipts = $this->collections->receipts($user);
+        $data = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+            'search' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $fromInput = $data['from'] ?? null;
+        $toInput = $data['to'] ?? null;
+        if ($fromInput && ! $toInput) {
+            $toInput = $fromInput;
+        } elseif ($toInput && ! $fromInput) {
+            $fromInput = $toInput;
+        }
+
+        // Default to today so field staff see today's take first.
+        $filtered = (bool) ($fromInput || $toInput);
+        $from = $fromInput
+            ? Carbon::parse($fromInput)->startOfDay()
+            : today()->startOfDay();
+        $to = $toInput
+            ? Carbon::parse($toInput)->endOfDay()
+            : today()->endOfDay();
+        if ($from->gt($to)) {
+            [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+        }
+
+        $people = $this->collections->byShop($user, $data['search'] ?? null, $from, $to);
+        $receipts = $this->collections->receipts($user, 80, $from, $to);
+        $bakiTotal = $this->collections->openBakiTotal($user);
+        $stats = $this->collections->periodStats($people, $bakiTotal);
 
         return view('field.collections', [
             'people' => $people,
             'receipts' => $receipts,
-            'receivedTotal' => round((float) $people->sum('received'), 2),
-            'pendingTotal' => round((float) $people->sum('pending'), 2),
-            'youCollected' => round((float) $people->sum('you_collected'), 2),
-            'bakiTotal' => round((float) $people->sum('baki'), 2),
+            'stats' => $stats,
+            'receivedTotal' => $stats['received'],
+            'pendingTotal' => $stats['pending'],
+            'youCollected' => $stats['you_collected'],
+            'bakiTotal' => $stats['baki'],
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'filtered' => $filtered,
+            'singleDay' => $from->isSameDay($to),
         ]);
     }
 
@@ -1093,16 +979,33 @@ class FieldPortalController extends Controller
             'failed' => Delivery::STATUS_FAILED,
         ];
         $filter = array_key_exists($request->query('status'), $filters) ? $request->query('status') : null;
+        $search = trim((string) $request->query('q', ''));
 
         $deliveries = (clone $base)
             ->with(['shop', 'order.invoice', 'order.advanceInvoice', 'order.delivery', 'assignee'])
             ->when($filter, fn ($q) => $q->where('status', $filters[$filter]))
+            ->when($search !== '', function ($q) use ($search) {
+                $like = '%'.$search.'%';
+                $q->where(function ($inner) use ($like) {
+                    $inner->where('number', 'like', $like)
+                        ->orWhere('tracking_ref', 'like', $like)
+                        ->orWhere('delivery_address', 'like', $like)
+                        ->orWhereHas('shop', function ($shop) use ($like) {
+                            $shop->where('name', 'like', $like)
+                                ->orWhere('owner_name', 'like', $like)
+                                ->orWhere('phone', 'like', $like)
+                                ->orWhere('city', 'like', $like)
+                                ->orWhere('code', 'like', $like);
+                        })
+                        ->orWhereHas('order', fn ($order) => $order->where('number', 'like', $like));
+                });
+            })
             ->orderByRaw("CASE status WHEN 'assigned' THEN 0 WHEN 'out_for_delivery' THEN 1 WHEN 'failed' THEN 2 ELSE 3 END")
             ->latest('dispatched_at')
             ->paginate(20)
             ->withQueryString();
 
-        return view('field.deliveries', compact('deliveries', 'filter', 'counts'));
+        return view('field.deliveries', compact('deliveries', 'filter', 'counts', 'search'));
     }
 
     public function showDelivery(Request $request, Delivery $delivery)
@@ -1120,9 +1023,19 @@ class FieldPortalController extends Controller
     public function receiveDelivery(Request $request, Delivery $delivery)
     {
         $this->assertSalesmanDelivery($request->user(), $delivery);
+        $this->deliveryStock->seedItems($delivery);
+        $delivery->load('items');
+
+        if (! $delivery->canReceiveStock()) {
+            throw ValidationException::withMessages([
+                'delivery' => $delivery->status === Delivery::STATUS_FAILED
+                    ? 'This delivery failed. Ask office to retry it before receiving stock.'
+                    : 'Received quantities are already confirmed for this delivery.',
+            ]);
+        }
 
         $data = $request->validate([
-            'items' => ['required', 'array'],
+            'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['required', 'integer'],
             'items.*.qty' => ['required', 'integer', 'min:0'],
         ]);
@@ -1140,9 +1053,17 @@ class FieldPortalController extends Controller
     public function updateDeliveryQuantities(Request $request, Delivery $delivery)
     {
         $this->assertSalesmanDelivery($request->user(), $delivery);
+        $this->deliveryStock->seedItems($delivery);
+        $delivery->load('items');
+
+        if ($delivery->status === Delivery::STATUS_FAILED) {
+            throw ValidationException::withMessages([
+                'delivery' => 'This delivery failed. Ask office to retry it before recording shop quantities.',
+            ]);
+        }
 
         $data = $request->validate([
-            'items' => ['required', 'array'],
+            'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['required', 'integer'],
             'items.*.qty' => ['required', 'integer', 'min:0'],
             'complete' => ['nullable', 'boolean'],
@@ -1165,7 +1086,7 @@ class FieldPortalController extends Controller
 
         $message = $returnNumber
             ? 'Delivered quantities saved. Unsold units sent to Returns as '.$returnNumber.' (pending admin verification — not added to inventory yet).'
-            : 'Delivered quantities saved.';
+            : 'Delivered quantities saved. Delivery complete.';
 
         return redirect()->route('field.deliveries.show', $delivery)->with('success', $message);
     }
@@ -1173,9 +1094,16 @@ class FieldPortalController extends Controller
     public function returnDeliveryStock(Request $request, Delivery $delivery)
     {
         $this->assertSalesmanDelivery($request->user(), $delivery);
+        $delivery->load('items');
+
+        if (! $delivery->canSubmitUnsoldReturn()) {
+            throw ValidationException::withMessages([
+                'delivery' => 'Finish delivering to the shop first, then submit any leftover stock as a return.',
+            ]);
+        }
 
         $data = $request->validate([
-            'items' => ['required', 'array'],
+            'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['required', 'integer'],
             'items.*.qty' => ['required', 'integer', 'min:0'],
         ]);
@@ -1344,45 +1272,16 @@ class FieldPortalController extends Controller
         });
     }
 
-    /**
-     * A salesman sets the first login for a shop they still look after. Changing it later is an
-     * office job, except for fixing a typo on the same device shortly after setting it.
-     */
-    private function canSetPartnerLogin(Request $request, PartnerInquiry $inquiry): bool
-    {
-        if (! $inquiry->shop || $inquiry->shop->assigned_salesman_id !== $request->user()->id) {
-            return false;
-        }
-
-        if ($inquiry->needsLogin()) {
-            return true;
-        }
-
-        $setAt = $request->session()->get("partner_login_set.{$inquiry->id}");
-
-        return $setAt && now()->timestamp - $setAt < 30 * 60;
-    }
-
+    /** Shops this salesman owns/created that still need an owner portal login. */
     private function loginsToCreate(User $user): Collection
-    {
-        return PartnerInquiry::query()
-            ->with('shop')
-            ->where('submitted_by', $user->id)
-            ->where('status', PartnerInquiry::STATUS_CONVERTED)
-            ->whereNull('portal_email')
-            ->latest('reviewed_at')
-            ->get();
-    }
-
-    /** @return Collection<int, Shop> shops this salesman looks after that have no portal login yet */
-    private function partnerCandidateShops(User $user): Collection
     {
         return Shop::query()
             ->where(fn ($q) => $q->where('assigned_salesman_id', $user->id)->orWhere('created_by', $user->id))
-            ->where('status', '!=', Shop::STATUS_REJECTED)
+            ->whereIn('status', [Shop::STATUS_ACTIVE, Shop::STATUS_PENDING])
             ->whereDoesntHave('users')
-            ->orderBy('name')
-            ->get(['id', 'code', 'name', 'owner_name', 'phone', 'email', 'city', 'status']);
+            ->latest('created_at')
+            ->limit(20)
+            ->get(['id', 'code', 'name', 'owner_name', 'created_at']);
     }
 
     private function assertAssignedShop(Request $request, Shop $shop): void

@@ -14,53 +14,42 @@
 @section('back_post')
     {{ $visit->isOpen() ? route('field.visit.leave', $visit) : '' }}
 @endsection
-@section('back_post_fields')
-    @if ($visit->isOpen())
-        <input type="hidden" name="outcome" value="{{ $visit->order_id ? 'order_taken' : 'no_order' }}">
-        <input type="hidden" name="redirect" value="shops">
-    @endif
-@endsection
 @if ($taking)
     @section('has-bar', '1')
 @endif
 @section('actions')
     @if ($visit->isOpen())
-        @include('field.partials.leave-shop', [
-            'leaveVisit' => $visit,
-            'leaveRedirect' => 'shops',
-            'leaveClass' => 'f-btn f-btn-ghost f-btn-sm',
-        ])
+        <button type="button" class="f-btn f-btn-ghost f-btn-sm f-desktop-only" onclick="window.dispatchEvent(new CustomEvent('open-leave', { detail: 'shops' }))">
+            <i data-lucide="log-out"></i> {{ __('field.im_leaving_btn') }}
+        </button>
     @endif
 @endsection
 @section('content')
-    <div class="f-card" style="padding:14px">
-        <div style="display:flex;gap:12px;align-items:center">
+    <div class="f-card f-visit-shop">
+        <div class="f-visit-shop-top">
             <div class="f-shop-ico"><i data-lucide="store"></i></div>
-            <div style="flex:1;min-width:0">
-                <div class="f-shop-name">{{ $shop?->owner_name ?: $shop?->name }}</div>
-                <div class="f-shop-meta">{{ $shop?->address ?: $shop?->city }}</div>
+            <div class="f-visit-shop-meta">
+                <div class="f-shop-name">{{ $shop?->name }}</div>
+                <div class="f-shop-meta">{{ collect([$shop?->owner_name, $shop?->address ?: $shop?->city])->filter()->implode(' · ') }}</div>
             </div>
             @if ($phone)
                 <a class="f-btn f-btn-soft f-btn-icon" href="tel:{{ $phone }}" aria-label="Call shop"><i data-lucide="phone"></i></a>
             @endif
         </div>
-        <div class="f-chips" style="margin-top:12px">
+        <div class="f-chips">
             @if ($canOrder)
                 <span class="f-chip {{ $outstanding > 0 ? 'red' : 'green' }}">Baki {{ \App\Support\DemoData::taka($outstanding) }}</span>
             @else
                 <span class="f-chip amber">Awaiting approval</span>
             @endif
-            @if ($shop?->priceGroup)<span class="f-chip">{{ $shop->priceGroup->name }} prices</span>@endif
-            @if ($shop?->payment_terms_days)<span class="f-chip">{{ $shop->payment_terms_days }}-day terms</span>@endif
+            @if ($shop?->priceGroup)<span class="f-chip">{{ $shop->priceGroup->name }}</span>@endif
         </div>
         @if ($visit->isOpen())
             <div class="f-here">
-                <span><b>You're at this shop now</b>Tap I'm leaving when you walk out.</span>
-                @include('field.partials.leave-shop', [
-                    'leaveVisit' => $visit,
-                    'leaveRedirect' => 'shops',
-                    'leaveClass' => 'f-btn f-btn-ghost f-btn-sm',
-                ])
+                <span><b>{{ __('field.you_are_at', ['shop' => $shop?->name]) }}</b>{{ __('field.checked_in_ago', ['when' => $visit->checked_in_at?->diffForHumans()]) }}</span>
+                <button type="button" class="f-btn f-btn-ghost f-btn-sm" onclick="window.dispatchEvent(new CustomEvent('open-leave', { detail: 'shops' }))">
+                    <i data-lucide="log-out"></i> {{ __('field.im_leaving_btn') }}
+                </button>
             </div>
         @endif
     </div>
@@ -192,9 +181,6 @@
                 <div x-show="filtered().length === 0" class="f-muted" style="padding:24px 0;text-align:center">No products match your search.</div>
             </div>
 
-            <button type="button" class="f-btn f-btn-ghost f-btn-block f-mobile-only" @click="window.dispatchEvent(new CustomEvent('open-leave', { detail: 'shops' }))" style="margin-top:4px">
-                <i data-lucide="log-out"></i> I'm leaving
-            </button>
           </div>
 
           <aside class="f-visit-side">
@@ -216,7 +202,6 @@
                 <div class="f-warn" x-show="hasBelowMin()">A selling price is below the product minimum. Raise it before sending.</div>
                 <div class="f-warn" x-show="hasOverStock()">A product is over available stock. Reduce the quantity.</div>
                 <button type="button" class="f-btn f-btn-primary f-btn-lg f-btn-block" style="margin-top:14px" :disabled="count() === 0 || hasBelowMin() || hasOverStock()" @click="reviewSheet = true">Review &amp; send order</button>
-                <button type="button" class="f-btn f-btn-ghost f-btn-block" style="margin-top:8px" @click="window.dispatchEvent(new CustomEvent('open-leave', { detail: 'shops' }))"><i data-lucide="log-out"></i> I'm leaving</button>
             </div>
           </aside>
           </div>
@@ -298,8 +283,8 @@
 
                 <p class="f-review-pay-note">No payment on this order now. Collect when you deliver.</p>
 
-                <label class="f-label" for="order-notes">What did you talk about with the owner? <em class="as-req">*</em></label>
-                <textarea id="order-notes" class="f-textarea f-review-note" name="notes" rows="2" maxlength="1000" required placeholder="e.g. restock of chargers, owner will pay on delivery">{{ old('notes') }}</textarea>
+                <label class="f-label" for="order-notes">{{ __('field.talk_notes_label') }} <em class="as-req">*</em></label>
+                <textarea id="order-notes" class="f-textarea f-review-note" name="notes" rows="2" maxlength="1000" required placeholder="{{ __('field.talk_notes_placeholder') }}">{{ old('notes') }}</textarea>
                 <div class="f-review-foot">
                     <button class="f-btn f-btn-success f-btn-lg f-btn-block" type="submit" :disabled="submitting || count() === 0 || hasBelowMin() || hasOverStock() || discountAmount() > total() + 0.01">
                         <span x-text="submitting ? 'Sending…' : sendLabel()"></span>
@@ -359,7 +344,7 @@ function fieldOrder(catalog) {
         qty: {}, prices: {},
         discount: 0,
         previousBaki: {{ json_encode($outstanding) }},
-        reviewSheet: false, endSheet: false, submitting: false,
+        reviewSheet: false, submitting: false,
         taka(n) { return '৳ ' + Math.round(n || 0).toLocaleString('en-IN'); },
         sellPrice(p) {
             const raw = this.prices[p.id];
@@ -461,8 +446,9 @@ function fieldOrder(catalog) {
             if (this.discountAmount() > this.total()) this.discount = this.total();
         },
         init() {
-            this.$watch('reviewSheet', (open) => { document.body.style.overflow = open ? 'hidden' : ''; });
-            this.$watch('endSheet', (open) => { document.body.style.overflow = open ? 'hidden' : ''; });
+            this.$watch('reviewSheet', (open) => {
+                document.body.classList.toggle('f-sheet-open', !!open);
+            });
             this.$watch('discount', () => this.clampDiscount());
             this.$nextTick(() => window.lucide && lucide.createIcons());
             this.$watch('view', () => this.$nextTick(() => window.lucide && lucide.createIcons()));

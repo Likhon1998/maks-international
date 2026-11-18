@@ -165,7 +165,8 @@ class DeliveryAssignmentTest extends TestCase
         $this->actingAs($other)
             ->get(route('field.orders.show', $order))
             ->assertOk()
-            ->assertDontSee('Mark delivered')
+            ->assertDontSee('Open delivery')
+            ->assertDontSee('Quick: full qty delivered')
             ->assertSee('Assigned to');
 
         $this->actingAs($other)
@@ -176,7 +177,8 @@ class DeliveryAssignmentTest extends TestCase
         $this->actingAs($rider)
             ->get(route('field.orders.show', $order))
             ->assertOk()
-            ->assertSee('Mark delivered');
+            ->assertSee('Open delivery')
+            ->assertSee('Quick: full qty delivered');
 
         $this->actingAs($admin)
             ->post(route('deliveries.assign', $delivery), ['assigned_to' => $other->id])

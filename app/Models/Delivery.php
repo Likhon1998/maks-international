@@ -82,13 +82,40 @@ class Delivery extends Model
         return $this->hasMany(DeliveryItem::class);
     }
 
+    /**
+     * Receive step is done once the salesman has confirmed load quantities
+     * (including intentional zeros for lines not taken from the warehouse).
+     */
     public function isFullyReceived(): bool
     {
+        if ($this->received_at) {
+            return true;
+        }
+
         if ($this->items->isEmpty()) {
             return false;
         }
 
-        return $this->items->every(fn (DeliveryItem $item) => (int) $item->qty_received > 0);
+        return $this->items->every(
+            fn (DeliveryItem $item) => $item->isReceiveConfirmed() || (int) $item->qty_received > 0
+        );
+    }
+
+    public function canReceiveStock(): bool
+    {
+        return ! in_array($this->status, [self::STATUS_DELIVERED], true)
+            && ! $this->isFullyReceived();
+    }
+
+    public function canRecordShopQuantities(): bool
+    {
+        return $this->isFullyReceived()
+            && ! in_array($this->status, [self::STATUS_DELIVERED, self::STATUS_FAILED], true);
+    }
+
+    public function canSubmitUnsoldReturn(): bool
+    {
+        return $this->status === self::STATUS_DELIVERED && $this->remainingQty() > 0;
     }
 
     public function remainingQty(): int

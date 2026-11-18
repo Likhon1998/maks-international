@@ -1,5 +1,14 @@
 @php
     $authUser = auth()->user();
+    $navItemActive = static function (array $item): bool {
+        $patterns = (array) ($item['active'] ?? (explode('.', $item['name'])[0].'.*'));
+        if (! request()->routeIs(...$patterns)) {
+            return false;
+        }
+        $except = (array) ($item['except'] ?? []);
+
+        return $except === [] || ! request()->routeIs(...$except);
+    };
     $nav = [
         ['label' => 'SALES & ORDERS', 'items' => [
             ['name' => 'shops.index', 'label' => 'Shops', 'icon' => 'store'],
@@ -7,8 +16,8 @@
             ['name' => 'salesmen.index', 'label' => 'Salesmen', 'icon' => 'users', 'permission' => 'salesmen.view'],
             ['name' => 'orders.index', 'label' => 'Orders', 'icon' => 'shopping-bag', 'permission' => 'orders.view'],
             ['name' => 'fulfilment.index', 'label' => 'Warehouse desk', 'icon' => 'clipboard-check', 'permission' => 'fulfilment.view'],
-            ['name' => 'deliveries.index', 'label' => 'Deliveries', 'icon' => 'truck', 'permission' => 'deliveries.view'],
-            ['name' => 'deliveries.men', 'label' => 'Delivery men', 'icon' => 'bike', 'permission' => 'deliveries.view'],
+            ['name' => 'deliveries.index', 'label' => 'Deliveries', 'icon' => 'truck', 'permission' => 'deliveries.view', 'active' => ['deliveries.*'], 'except' => ['deliveries.men']],
+            ['name' => 'deliveries.men', 'label' => 'Delivery men', 'icon' => 'bike', 'permission' => 'deliveries.view', 'active' => ['deliveries.men']],
             ['name' => 'returns.index', 'label' => 'Returns & warranty', 'icon' => 'rotate-ccw'],
             ['name' => 'invoices.index', 'label' => 'Invoices', 'icon' => 'file-text'],
             ['name' => 'payments.index', 'label' => 'Payments', 'icon' => 'wallet'],
@@ -83,9 +92,7 @@
                 $visibleItems = collect($group['items'])->filter(
                     fn ($item) => empty($item['permission']) || auth()->user()?->can($item['permission'])
                 )->values();
-                $groupActive = $visibleItems->contains(
-                    fn ($item) => request()->routeIs(explode('.', $item['name'])[0].'.*')
-                );
+                $groupActive = $visibleItems->contains(fn ($item) => $navItemActive($item));
                 $groupKey = \Illuminate\Support\Str::slug($group['label']);
             @endphp
             @continue($visibleItems->isEmpty())
@@ -124,7 +131,7 @@
                         @foreach ($visibleItems as $item)
                             <a
                                 href="{{ route($item['name']) }}"
-                                class="nav-item {{ request()->routeIs(explode('.', $item['name'])[0].'.*') ? 'active' : '' }}"
+                                class="nav-item {{ $navItemActive($item) ? 'active' : '' }}"
                                 title="{{ $item['label'] }}"
                             >
                                 <i data-lucide="{{ $item['icon'] }}"></i>

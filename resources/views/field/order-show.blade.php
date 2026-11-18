@@ -122,20 +122,22 @@
             @endif
 
             @if ($order->fieldCanMarkDelivered(auth()->user()))
-                <form class="f-od-deliver" method="post" action="{{ route('field.orders.deliver', $order) }}"
-                      onsubmit="return confirm('Mark this order as delivered?')">
-                    @csrf
+                <div class="f-od-deliver">
                     <div>
                         <strong>Deliver</strong>
-                        <span class="f-muted f-small">Assigned to you. Or open the delivery for receive / quantities.</span>
+                        <span class="f-muted f-small">Assigned to you. Receive stock, then confirm what the shop accepted.</span>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                        <button class="f-btn f-btn-primary f-btn-sm" type="submit">Mark delivered</button>
                         @if ($order->delivery)
-                            <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.deliveries.show', $order->delivery) }}">Open delivery</a>
+                            <a class="f-btn f-btn-primary f-btn-sm" href="{{ route('field.deliveries.show', $order->delivery) }}"><i data-lucide="truck"></i> Open delivery</a>
                         @endif
+                        <form method="post" action="{{ route('field.orders.deliver', $order) }}"
+                              onsubmit="return confirm('Mark the full ordered qty as delivered now? Use Open delivery if the shop took fewer units.')">
+                            @csrf
+                            <button class="f-btn f-btn-ghost f-btn-sm" type="submit">Quick: full qty delivered</button>
+                        </form>
                     </div>
-                </form>
+                </div>
             @elseif ($order->canDeliver())
                 <div class="f-od-deliver">
                     <div>

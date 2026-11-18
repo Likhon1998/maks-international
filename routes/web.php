@@ -136,11 +136,6 @@ Route::prefix('field')->name('field.')->group(function () {
         Route::get('/announcements', [FieldPortalController::class, 'announcements'])->name('announcements');
         Route::get('/notifications', [FieldPortalController::class, 'notifications'])->name('notifications');
         Route::post('/notifications/{id}/read', [FieldPortalController::class, 'markNotificationRead'])->name('notifications.read');
-        Route::get('/partners', [FieldPortalController::class, 'partners'])->name('partners');
-        Route::get('/partners/apply', [FieldPortalController::class, 'createPartner'])->name('partners.create');
-        Route::post('/partners', [FieldPortalController::class, 'storePartner'])->middleware('throttle:20,1')->name('partners.store');
-        Route::get('/partners/{inquiry}/login', [FieldPortalController::class, 'partnerLogin'])->name('partners.login');
-        Route::post('/partners/{inquiry}/login', [FieldPortalController::class, 'storePartnerLogin'])->middleware('throttle:20,1')->name('partners.login.store');
         Route::get('/account/password', [AccountPasswordController::class, 'edit'])->name('account.password');
         Route::put('/account/password', [AccountPasswordController::class, 'update'])->middleware('throttle:6,1')->name('account.password.update');
     });

@@ -52,17 +52,35 @@ class DeliveryStockService
         if ($delivery->status === Delivery::STATUS_DELIVERED) {
             throw ValidationException::withMessages(['delivery' => 'This delivery is already completed.']);
         }
+        if ($delivery->status === Delivery::STATUS_FAILED) {
+            throw ValidationException::withMessages([
+                'delivery' => 'This delivery failed. Ask office to retry it before receiving stock again.',
+            ]);
+        }
+        if ($delivery->isFullyReceived()) {
+            throw ValidationException::withMessages(['delivery' => 'Received quantities are already confirmed for this delivery.']);
+        }
 
         return DB::transaction(function () use ($delivery, $lines, $actor) {
             $delivery = Delivery::query()->lockForUpdate()->with(['items.product', 'warehouse', 'order'])->findOrFail($delivery->id);
             $this->seedItems($delivery);
             $delivery->load('items.product');
 
+            if ($delivery->items->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'delivery' => 'No products on this delivery. Ask office to check the order lines.',
+                ]);
+            }
+
             $byId = collect($lines)->keyBy(fn ($row) => (int) $row['id']);
 
             foreach ($delivery->items as $item) {
-                if ((int) $item->qty_received > 0) {
-                    continue; // already confirmed
+                // Already confirmed — including legacy rows that only stored qty_received.
+                if ($item->isReceiveConfirmed() || (int) $item->qty_received > 0) {
+                    if (! $item->isReceiveConfirmed()) {
+                        $item->update(['received_at' => $item->received_at ?? now()]);
+                    }
+                    continue;
                 }
 
                 $qty = (int) ($byId[$item->id]['qty'] ?? $item->qty_ordered);
@@ -91,7 +109,7 @@ class DeliveryStockService
 
                 $item->update([
                     'qty_received' => $qty,
-                    'received_at' => $qty > 0 ? now() : null,
+                    'received_at' => now(),
                 ]);
             }
 
@@ -113,6 +131,11 @@ class DeliveryStockService
     {
         if ($delivery->status === Delivery::STATUS_DELIVERED) {
             throw ValidationException::withMessages(['delivery' => 'Already delivered.']);
+        }
+        if ($delivery->status === Delivery::STATUS_FAILED) {
+            throw ValidationException::withMessages([
+                'delivery' => 'This delivery failed. Ask office to retry it before recording shop quantities.',
+            ]);
         }
 
         return DB::transaction(function () use ($delivery, $lines, $actor, $complete) {

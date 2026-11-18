@@ -69,7 +69,6 @@ class FieldDayActivityTest extends TestCase
             ->assertOk()
             ->assertSee(route('field.shops.check-in', $shop), false)
             ->assertSee('Shop visit', false)
-            ->assertSee(route('field.partners'), false)
             ->assertSee(route('field.announcements'), false);
 
         $this->actingAs($salesman)

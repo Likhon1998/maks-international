@@ -158,17 +158,17 @@
                             </button>
                         @endforeach
                     </div>
-                    <label class="as-field" style="margin-top:14px">
-                        <span class="as-label">What did you talk about with the owner?</span>
-                        <textarea class="f-textarea @error('notes') is-invalid @enderror" name="notes" rows="2" maxlength="1000" placeholder="e.g. they want chargers next week, asked about credit, shop was busy…">{{ old('notes') }}</textarea>
+                    <label class="as-field" style="margin-top:12px">
+                        <span class="as-label">{{ __('field.talk_notes_label') }}</span>
+                        <textarea class="f-textarea @error('notes') is-invalid @enderror" name="notes" rows="2" maxlength="1000" placeholder="{{ __('field.talk_notes_placeholder') }}">{{ old('notes') }}</textarea>
                         @error('notes')<span class="f-error">{{ $message }}</span>@enderror
                     </label>
-                    <div style="margin-top:14px">
+                    <div style="margin-top:10px">
                         <x-live-camera-photo
                             name="photo"
                             :required="false"
-                            title="Take a live shopfront photo"
-                            hint="Camera only — gallery photos are blocked for reality check."
+                            title="{{ __('field.live_photo_optional') }}"
+                            hint=""
                         />
                         @error('photo')<span class="f-error">{{ $message }}</span>@enderror
                         @error('photo_captured')<span class="f-error">{{ $message }}</span>@enderror

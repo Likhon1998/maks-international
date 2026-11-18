@@ -9,8 +9,11 @@
         </div>
         <div class="pl-todo-list">
             @foreach ($loginsToCreate as $todo)
-                <a class="pl-todo-item" href="{{ route('field.partners.login', $todo) }}">
-                    <span class="pl-todo-name">{{ $todo->shop?->name ?? $todo->business_name }}<small>{{ collect([$todo->shop?->code, $todo->reviewed_at?->diffForHumans()])->filter()->implode(' · ') }}</small></span>
+                <a class="pl-todo-item" href="{{ route('field.shops.login', $todo) }}">
+                    <span class="pl-todo-name">
+                        {{ $todo->name }}
+                        <small>{{ collect([$todo->code, $todo->owner_name, $todo->created_at?->diffForHumans()])->filter()->implode(' · ') }}</small>
+                    </span>
                     <span class="f-btn f-btn-primary f-btn-sm"><i data-lucide="user-plus"></i> {{ __('field.create_login') }}</span>
                 </a>
             @endforeach

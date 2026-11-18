@@ -11,7 +11,6 @@
 @section('subheading', $mineCount.' assigned to you · '.$otherCount.' not assigned to you')
 @section('actions')
     <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.shops.create') }}"><i data-lucide="plus"></i> Add shop</a>
-    <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.partners.create') }}"><i data-lucide="handshake"></i> Partner</a>
     <a class="f-btn f-btn-primary f-btn-sm" href="{{ route('field.orders.create') }}"><i data-lucide="shopping-bag"></i> New order</a>
 @endsection
 @section('content')

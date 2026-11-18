@@ -45,4 +45,10 @@ class DeliveryItem extends Model
     {
         return (int) $this->qty_received > 0;
     }
+
+    /** True after the salesman confirmed this line (qty may be zero). */
+    public function isReceiveConfirmed(): bool
+    {
+        return $this->received_at !== null;
+    }
 }

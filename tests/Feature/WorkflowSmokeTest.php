@@ -543,7 +543,7 @@ class WorkflowSmokeTest extends TestCase
             ->assertSee('By salesman')->assertSee($this->salesman->name)->assertSee('Field Test Mobile Corner');
         $this->get(route('visits.index', ['period' => 'month', 'salesman_id' => $this->salesman->id]))->assertOk();
         $this->get(route('shops.index', ['source' => 'field']))->assertOk()->assertSee('Added by salesmen');
-        $this->get(route('shops.show', $shop))->assertOk()->assertSee('Added in the field by '.$this->salesman->name, false);
+        $this->get(route('shops.show', $shop))->assertOk()->assertSee('Approved by salesman '.$this->salesman->name, false);
         $this->get(route('salesmen.show', $this->salesman))->assertOk()
             ->assertSee('Shops added in the field')->assertSee('Field Test Mobile Corner');
 
@@ -558,94 +558,53 @@ class WorkflowSmokeTest extends TestCase
         $this->get(route('field.visit.show', $next))->assertOk()->assertSee('Review order');
     }
 
-    public function test_salesman_applies_for_partner_and_admin_accepts_existing_shop(): void
+    public function test_salesman_adds_shop_and_creates_owner_login(): void
     {
         $this->actingAs($this->salesman);
         $this->ok($this->post(route('field.shops.store'), [
-            'name' => 'Partner Candidate Store', 'owner_name' => 'Jamal Uddin', 'phone' => '01712340987', 'city' => 'Uttara',
-        ]), 'store candidate shop');
-        $shop = Shop::where('name', 'Partner Candidate Store')->firstOrFail();
-        $shopCount = Shop::count();
-
-        $this->get(route('field.partners.create', ['shop' => $shop->id]))->assertOk()
-            ->assertSee('New partner application')->assertSee('Partner Candidate Store');
-
-        $this->post(route('field.partners.store'), [
-            'business_name' => 'Staff email', 'email' => $this->admin->email, 'phone' => '01712340987',
-        ])->assertSessionHasErrors('email');
-
-        $this->ok($this->post(route('field.partners.store'), [
-            'shop_id' => $shop->id,
-            'business_name' => 'Partner Candidate Store',
-            'email' => 'Jamal.Store@Example.com',
+            'name' => 'Field Partner Store',
+            'owner_name' => 'Jamal Uddin',
             'phone' => '01712340987',
             'city' => 'Uttara',
-            'business_type' => 'retailer',
-        ]), 'submit field partner application');
+        ]), 'store shop');
 
-        $inquiry = PartnerInquiry::where('submitted_by', $this->salesman->id)->latest('id')->firstOrFail();
-        $this->assertSame(PartnerInquiry::SOURCE_FIELD, $inquiry->source);
-        $this->assertSame($shop->id, $inquiry->shop_id);
-        $this->assertSame('jamal.store@example.com', $inquiry->email);
-        $this->assertSame('', $inquiry->contact_name);
-        $this->assertTrue($inquiry->isPending());
+        $shop = Shop::where('name', 'Field Partner Store')->firstOrFail();
+        $this->assertSame(Shop::STATUS_ACTIVE, $shop->status);
+        $this->assertFalse($shop->users()->exists());
 
-        $this->post(route('field.partners.store'), [
-            'business_name' => 'Again', 'email' => 'jamal.store@example.com', 'phone' => '01800000000',
+        $this->get(route('field.dashboard'))->assertOk()->assertSee('Field Partner Store');
+        $this->get(route('field.shops.login', $shop))->assertOk();
+
+        $this->post(route('field.shops.login.store', $shop), [
+            'login_email' => $this->admin->email,
+            'login_password' => 'Secret123',
         ])->assertSessionHasErrors();
 
-        $this->get(route('field.partners'))->assertOk()->assertSee('Partner Candidate Store')->assertSee('Waiting');
+        $this->post(route('field.shops.login.store', $shop), [
+            'login_email' => 'jamal.store@example.com',
+            'login_password' => 'short',
+        ])->assertSessionHasErrors('login_password');
 
-        $this->actingAs($this->admin);
-        $this->get(route('partner-inquiries.index', ['status' => 'pending']))->assertOk()
-            ->assertSee('Field · '.$this->salesman->name, false);
-        $this->ok($this->post(route('partner-inquiries.accept', $inquiry)), 'accept field application');
+        $this->post(route('field.shops.login.store', $shop), [
+            'login_email' => 'Jamal.Store@example.com',
+            'login_password' => 'Jamal2026!',
+        ])
+            ->assertRedirect(route('field.shops.login', $shop))
+            ->assertSessionHas('login_result');
 
-        $this->assertSame(PartnerInquiry::STATUS_CONVERTED, $inquiry->fresh()->status);
-        $this->assertSame($shopCount, Shop::count(), 'Accepting should upgrade the existing shop, not create a new one.');
-        $shop->refresh();
-        $this->assertSame(Shop::STATUS_ACTIVE, $shop->status);
-        $this->assertFalse($shop->users()->exists(), 'Field applications wait for the salesman to create the login.');
-        $this->assertTrue($inquiry->fresh()->needsLogin());
-        $this->get(route('partner-inquiries.index', ['source' => 'field']))->assertOk()
-            ->assertSee('Waiting for '.$this->salesman->name, false)->assertSee('Issue login');
-        $this->post(route('partner-inquiries.send-whatsapp', $inquiry))->assertSessionHas('error');
+        $this->assertTrue($shop->fresh()->users()->where('email', 'jamal.store@example.com')->exists());
 
-        $otherSalesman = User::where('portal', User::PORTAL_SALESMAN)->where('id', '!=', $this->salesman->id)->first();
-        if ($otherSalesman) {
-            $this->actingAs($otherSalesman)->get(route('field.partners.login', $inquiry))->assertForbidden();
-        }
-
-        $this->actingAs($this->salesman);
-        $this->get(route('field.dashboard'))->assertOk()->assertSee('create the owner', false);
-        $this->get(route('field.partners'))->assertOk()->assertSee('Accepted')->assertSee('Needs login');
-        $this->get(route('field.partners.login', $inquiry))->assertOk()->assertSee('Create partner login');
-
-        $this->post(route('field.partners.login.store', $inquiry), ['email' => $this->admin->email, 'password' => 'Secret123'])
-            ->assertSessionHasErrors('email');
-        $this->post(route('field.partners.login.store', $inquiry), ['email' => 'jamal.store@example.com', 'password' => 'short'])
-            ->assertSessionHasErrors('password');
-
-        $this->post(route('field.partners.login.store', $inquiry), ['email' => 'Jamal.Store@example.com', 'password' => 'Jamal2026!'])
-            ->assertRedirect(route('field.partners.login', $inquiry))
-            ->assertSessionHas('login_result', fn ($r) => $r['ok'] === true && $r['email'] === 'jamal.store@example.com');
-        $this->get(route('field.partners.login', $inquiry))->assertOk()
-            ->assertSee('Login works')->assertSee('Jamal2026!');
-        $this->assertSame('jamal.store@example.com', $inquiry->fresh()->portal_email);
-        $this->assertTrue($shop->users()->where('email', 'jamal.store@example.com')->exists());
-
-        $this->get(route('field.partners.create'))->assertOk()->assertDontSee('Partner Candidate Store · ');
-
-        $this->ok($this->post(route('field.partners.login.store', $inquiry), ['email' => 'jamal.store@example.com', 'password' => 'NewPass2026']), 'reset owner password');
+        $this->ok($this->post(route('field.shops.login.store', $shop), [
+            'login_email' => 'jamal.store@example.com',
+            'login_password' => 'NewPass2026',
+        ]), 'reset owner password');
         $this->assertSame(1, $shop->users()->count());
 
-        $this->actingAs($this->admin);
-        $this->get(route('partner-inquiries.index'))->assertOk()
-            ->assertSee('set by '.$this->salesman->name, false)->assertSee('Website');
-
         auth()->logout();
-        $this->post(route('portal.login.submit'), ['email' => 'jamal.store@example.com', 'password' => 'NewPass2026'])
-            ->assertRedirect(route('portal.dashboard'));
+        $this->post(route('portal.login.submit'), [
+            'email' => 'jamal.store@example.com',
+            'password' => 'NewPass2026',
+        ])->assertRedirect(route('portal.dashboard'));
         $this->assertAuthenticated();
         $this->assertSame('jamal.store@example.com', auth()->user()->email);
     }

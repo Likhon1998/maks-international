@@ -327,36 +327,29 @@ class LogicGuardsTest extends TestCase
         $this->assertSame(1, Commission::where('sales_target_id', $target->id)->where('type', Commission::TYPE_TARGET_BONUS)->count());
     }
 
-    // H7 — a salesman can only set a partner's first login, for a shop still assigned to them.
-    public function test_salesman_cannot_reset_partner_login_later_or_for_reassigned_shop(): void
+    // H7 — a salesman can only set login for a shop they still manage.
+    public function test_salesman_cannot_set_shop_login_for_reassigned_shop(): void
     {
         $this->actingAs($this->salesman)->post(route('field.shops.store'), [
             'name' => 'Login Guard Store', 'owner_name' => 'Rafiq', 'phone' => '01712349999', 'city' => 'Mirpur',
         ]);
         $shop = Shop::where('name', 'Login Guard Store')->firstOrFail();
-        $this->post(route('field.partners.store'), [
-            'shop_id' => $shop->id, 'business_name' => 'Login Guard Store', 'email' => 'rafiq@example.com',
-            'phone' => '01712349999', 'city' => 'Mirpur', 'business_type' => 'retailer',
-        ])->assertSessionHasNoErrors();
-        $inquiry = PartnerInquiry::where('submitted_by', $this->salesman->id)->latest('id')->firstOrFail();
-        $this->actingAs($this->super)->post(route('partner-inquiries.accept', $inquiry));
-        $this->assertTrue($inquiry->fresh()->needsLogin());
 
         $other = User::where('portal', User::PORTAL_SALESMAN)->where('id', '!=', $this->salesman->id)->firstOrFail();
-        $shop->refresh()->update(['assigned_salesman_id' => $other->id]);
-        $this->actingAs($this->salesman)->post(route('field.partners.login.store', $inquiry), ['email' => 'rafiq@example.com', 'password' => 'Rafiq2026!'])
-            ->assertForbidden();
+        $shop->update(['assigned_salesman_id' => $other->id, 'created_by' => $other->id]);
 
-        $shop->update(['assigned_salesman_id' => $this->salesman->id]);
-        $this->post(route('field.partners.login.store', $inquiry), ['email' => 'rafiq@example.com', 'password' => 'Rafiq2026!'])
-            ->assertSessionHasNoErrors();
-        $this->assertSame('rafiq@example.com', $inquiry->fresh()->portal_email);
+        $this->actingAs($this->salesman)->post(route('field.shops.login.store', $shop), [
+            'login_email' => 'rafiq@example.com',
+            'login_password' => 'Rafiq2026!',
+        ])->assertForbidden();
 
-        $this->flushSession();
-        $this->actingAs($this->salesman)->get(route('field.partners.login', $inquiry))
-            ->assertRedirect(route('field.partners'))->assertSessionHas('error');
-        $this->post(route('field.partners.login.store', $inquiry), ['email' => 'rafiq@example.com', 'password' => 'Taken2026!'])
-            ->assertForbidden();
+        $shop->update(['assigned_salesman_id' => $this->salesman->id, 'created_by' => $this->salesman->id]);
+        $this->post(route('field.shops.login.store', $shop), [
+            'login_email' => 'rafiq@example.com',
+            'login_password' => 'Rafiq2026!',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertTrue($shop->fresh()->users()->where('email', 'rafiq@example.com')->exists());
         $this->assertTrue(Hash::check('Rafiq2026!', User::where('email', 'rafiq@example.com')->first()->password));
     }
 
