@@ -1,5 +1,5 @@
 @php
-    $outstanding = (float) $shop->outstanding_balance;
+    $outstanding = (float) $shop->fieldOutstanding();
     $phone = preg_replace('/[^0-9+]/', '', (string) $shop->phone);
     $mapQuery = urlencode(trim(implode(', ', array_filter([$shop->name, $shop->address, $shop->city]))));
     $isOpenHere = $openVisit && $openVisit->shop_id === $shop->id;
@@ -28,13 +28,13 @@
     @unless ($hideVisit ?? false)
         <td class="visit">
             @if ($isOpenHere)
-                <span class="f-status amber">I'm here</span>
+                <span class="f-status amber">{{ __('field.im_here') }}</span>
             @elseif ($shop->visited_today)
-                <span class="f-status green">Visited today</span>
+                <span class="f-status green">{{ __('field.visited_today') }}</span>
             @elseif ($shop->last_visit_at)
-                <span class="f-muted">{{ $shop->last_visit_at->diffForHumans(null, true) }} ago</span>
+                <span class="f-muted">{{ __('field.ago', ['when' => $shop->last_visit_at->diffForHumans(null, true)]) }}</span>
             @else
-                <span class="f-status gray">Never</span>
+                <span class="f-status gray">{{ __('field.never') }}</span>
             @endif
         </td>
     @endunless
@@ -42,27 +42,27 @@
     @if ($showGroup ?? false)
         <td class="owner">
             @if (! empty($shop->is_mine))
-                <span class="f-chip green">My shop</span>
+                <span class="f-chip green">{{ __('field.my_shop') }}</span>
             @elseif ($shop->assignedSalesman)
                 <span class="f-chip">{{ $shop->assignedSalesman->name }}</span>
             @else
-                <span class="f-chip amber">Unassigned</span>
+                <span class="f-chip amber">{{ __('field.unassigned') }}</span>
             @endif
         </td>
     @endif
     <td class="act">
         <div class="actions">
             @if ($phone)
-                <a class="f-btn f-btn-ghost f-btn-sm f-btn-icon" href="tel:{{ $phone }}" title="Call {{ $shop->phone }}" aria-label="Call {{ $shop->name }}"><i data-lucide="phone"></i></a>
+                <a class="f-btn f-btn-ghost f-btn-sm f-btn-icon" href="tel:{{ $phone }}" title="{{ __('field.call') }} {{ $shop->phone }}" aria-label="{{ __('field.call') }} {{ $shop->name }}"><i data-lucide="phone"></i></a>
             @endif
-            <a class="f-btn f-btn-ghost f-btn-sm f-btn-icon" href="https://www.google.com/maps/search/?api=1&query={{ $mapQuery }}" target="_blank" rel="noopener" title="Directions" aria-label="Directions to {{ $shop->name }}"><i data-lucide="map-pin"></i></a>
+            <a class="f-btn f-btn-ghost f-btn-sm f-btn-icon" href="https://www.google.com/maps/search/?api=1&query={{ $mapQuery }}" target="_blank" rel="noopener" title="{{ __('field.directions') }}" aria-label="{{ __('field.directions') }} {{ $shop->name }}"><i data-lucide="map-pin"></i></a>
             @if ($pending)
                 <form method="post" action="{{ route('field.shops.approve', $shop) }}">
                     @csrf
-                    <button class="f-btn f-btn-primary f-btn-sm" type="submit" title="Approve this shop to take orders"><i data-lucide="check"></i> Approve</button>
+                    <button class="f-btn f-btn-primary f-btn-sm" type="submit" title="{{ __('field.approve') }}"><i data-lucide="check"></i> {{ __('field.approve') }}</button>
                 </form>
             @elseif ($isOpenHere)
-                <a class="f-btn f-btn-warn f-btn-sm" href="{{ route('field.visit.show', $openVisit) }}"><i data-lucide="store"></i> Continue visit</a>
+                <a class="f-btn f-btn-warn f-btn-sm" href="{{ route('field.visit.show', $openVisit) }}"><i data-lucide="store"></i> {{ __('field.continue_visit') }}</a>
                 @include('field.partials.leave-shop', [
                     'leaveVisit' => $openVisit,
                     'leaveRedirect' => 'shops',
@@ -73,14 +73,14 @@
                     'leaveVisit' => $openVisit,
                     'leaveRedirect' => ($orderMode ?? false) ? 'orders' : 'shops',
                     'leaveClass' => 'f-btn f-btn-ghost f-btn-sm',
-                    'leaveLabel' => 'Leave '.$openVisit->shop?->name.' first',
+                    'leaveLabel' => __('field.leave_shop_first', ['shop' => $openVisit->shop?->name]),
                 ])
             @elseif ($orderMode ?? false)
                 <form method="post" action="{{ route('field.shops.order', $shop) }}" data-checkin>
                     @csrf
                     <input type="hidden" name="latitude">
                     <input type="hidden" name="longitude">
-                    <button class="f-btn f-btn-primary f-btn-sm" type="submit"><i data-lucide="shopping-bag"></i> Select shop</button>
+                    <button class="f-btn f-btn-primary f-btn-sm" type="submit"><i data-lucide="shopping-bag"></i> {{ __('field.select_shop') }}</button>
                 </form>
             @elseif (! empty($shop->is_mine))
                 <form method="post" action="{{ route('field.shops.check-in', $shop) }}" data-checkin>
@@ -88,14 +88,14 @@
                     <input type="hidden" name="purpose" value="Shop visit">
                     <input type="hidden" name="latitude">
                     <input type="hidden" name="longitude">
-                    <button class="f-btn f-btn-primary f-btn-sm" type="submit"><i data-lucide="map-pin"></i> Visit</button>
+                    <button class="f-btn f-btn-primary f-btn-sm" type="submit"><i data-lucide="map-pin"></i> {{ __('field.visit') }}</button>
                 </form>
             @else
                 <form method="post" action="{{ route('field.shops.order', $shop) }}" data-checkin>
                     @csrf
                     <input type="hidden" name="latitude">
                     <input type="hidden" name="longitude">
-                    <button class="f-btn f-btn-primary f-btn-sm" type="submit"><i data-lucide="shopping-bag"></i> Order</button>
+                    <button class="f-btn f-btn-primary f-btn-sm" type="submit"><i data-lucide="shopping-bag"></i> {{ __('field.order_action') }}</button>
                 </form>
             @endif
         </div>

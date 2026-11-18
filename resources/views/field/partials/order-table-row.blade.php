@@ -3,9 +3,9 @@
     $due = (float) $order->collectibleBalance();
     $href = route('field.orders.show', $order).($due > 0.009 ? '#collect-bill' : '');
     $whenShort = $order->submitted_at?->isToday()
-        ? 'Today '.$order->submitted_at->format('g:i A')
+        ? __('field.today_time', ['time' => $order->submitted_at->format('g:i A')])
         : $order->submitted_at?->format('d M');
-    $statusLabel = $s['label'] === 'Waiting for approval' ? 'Waiting' : $s['label'];
+    $statusLabel = $s['label'] === __('field.status.waiting_approval') ? __('field.waiting') : $s['label'];
 @endphp
 <tr class="is-link" onclick="window.location='{{ $href }}'">
     <td class="shop">

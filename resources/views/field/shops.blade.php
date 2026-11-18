@@ -140,8 +140,16 @@
             </div>
         @else
             <div class="f-table-wrap">
-                <table class="f-table">
-                    <thead><tr><th>Shop</th><th class="f-desktop-only">Area</th><th>Added</th><th>Status</th><th></th></tr></thead>
+                <table class="f-table f-table-added">
+                    <thead>
+                        <tr>
+                            <th class="shop">Shop</th>
+                            <th class="f-desktop-only">Area</th>
+                            <th>Added</th>
+                            <th class="status">Status</th>
+                            <th class="act"></th>
+                        </tr>
+                    </thead>
                     <tbody>
                         @foreach ($addedShops as $added)
                             @php
@@ -153,25 +161,27 @@
                                 };
                             @endphp
                             <tr>
-                                <td>
+                                <td class="shop">
                                     <span class="strong">{{ $added->name }}</span>
                                     <span class="sub">{{ collect([$added->owner_name, $added->code])->filter()->implode(' · ') }}</span>
                                 </td>
                                 <td class="f-desktop-only">{{ $added->city ?: '—' }}</td>
-                                <td class="f-muted">{{ $added->created_at?->format('d M') }}</td>
-                                <td><span class="f-status {{ $tone }}">{{ $added->status === \App\Models\Shop::STATUS_PENDING ? 'Needs approval' : $added->statusLabel() }}</span></td>
-                                <td class="num" style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
-                                    @if ($added->status === \App\Models\Shop::STATUS_PENDING)
-                                        <form method="post" action="{{ route('field.shops.approve', $added) }}">
-                                            @csrf
-                                            <button class="f-btn f-btn-primary f-btn-sm" type="submit"><i data-lucide="check"></i> Approve</button>
-                                        </form>
-                                    @endif
-                                    @if ($added->users_count > 0)
-                                        <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.shops.login', $added) }}" title="View or reset owner login"><i data-lucide="key-round"></i> Login</a>
-                                    @elseif ($added->status !== \App\Models\Shop::STATUS_REJECTED && $added->status !== \App\Models\Shop::STATUS_ON_HOLD)
-                                        <a class="f-btn f-btn-primary f-btn-sm" href="{{ route('field.shops.login', $added) }}" title="Create owner login"><i data-lucide="user-plus"></i> Add login</a>
-                                    @endif
+                                <td class="f-muted nowrap">{{ $added->created_at?->format('d M') }}</td>
+                                <td class="status"><span class="f-status {{ $tone }}">{{ $added->status === \App\Models\Shop::STATUS_PENDING ? 'Needs approval' : $added->statusLabel() }}</span></td>
+                                <td class="act">
+                                    <div class="actions">
+                                        @if ($added->status === \App\Models\Shop::STATUS_PENDING)
+                                            <form method="post" action="{{ route('field.shops.approve', $added) }}">
+                                                @csrf
+                                                <button class="f-btn f-btn-primary f-btn-sm" type="submit"><i data-lucide="check"></i> Approve</button>
+                                            </form>
+                                        @endif
+                                        @if ($added->users_count > 0)
+                                            <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.shops.login', $added) }}" title="View or reset owner login"><i data-lucide="key-round"></i> Login</a>
+                                        @elseif ($added->status !== \App\Models\Shop::STATUS_REJECTED && $added->status !== \App\Models\Shop::STATUS_ON_HOLD)
+                                            <a class="f-btn f-btn-primary f-btn-sm" href="{{ route('field.shops.login', $added) }}" title="Create owner login"><i data-lucide="user-plus"></i> Add login</a>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach

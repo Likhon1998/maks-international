@@ -25,15 +25,24 @@
 
     <div class="card">
         <div class="table-wrap">
-            <table class="data">
+            <table class="data salesmen-table">
+                <colgroup>
+                    <col class="col-code">
+                    <col class="col-name">
+                    <col class="col-territory">
+                    <col class="col-shops">
+                    <col class="col-target">
+                    <col class="col-login">
+                    <col class="col-status">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Code</th>
-                        <th>Name</th>
+                        <th class="name">Name</th>
                         <th>Territory</th>
-                        <th>Shops</th>
-                        <th>Target</th>
-                        <th>Field login</th>
+                        <th class="num">Shops</th>
+                        <th class="num">Target</th>
+                        <th class="login">Field login</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -41,14 +50,14 @@
                     @forelse ($salesmen as $row)
                         <tr>
                             <td><a class="link" href="{{ route('salesmen.show', $row) }}">{{ $row->salesmanProfile?->employee_code ?: '—' }}</a></td>
-                            <td>
+                            <td class="name">
                                 <div style="font-weight:600">{{ $row->name }}</div>
-                                <div class="muted">{{ $row->phone ?: $row->email }}</div>
+                                <div class="muted">{{ $row->phone ?: '—' }}</div>
                             </td>
                             <td>{{ $row->salesmanProfile?->territory?->name ?: '—' }}</td>
-                            <td>{{ $row->assignedShops->count() }}</td>
-                            <td>{{ \App\Support\DemoData::taka($row->salesmanProfile?->monthly_target ?? 0) }}</td>
-                            <td class="muted" style="font-size:12px">{{ $row->email }}</td>
+                            <td class="num">{{ $row->assignedShops->count() }}</td>
+                            <td class="num">{{ \App\Support\DemoData::taka($row->salesmanProfile?->monthly_target ?? 0) }}</td>
+                            <td class="login muted">{{ $row->email }}</td>
                             <td><x-badge :status="$row->is_active && $row->salesmanProfile?->is_active ? 'Active' : 'Inactive'" /></td>
                         </tr>
                     @empty

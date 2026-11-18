@@ -1,5 +1,5 @@
 @php
-    $outstanding = (float) $shop->outstanding_balance;
+    $outstanding = (float) $shop->fieldOutstanding();
     $phone = preg_replace('/[^0-9+]/', '', (string) $shop->phone);
     $mapQuery = urlencode(trim(implode(', ', array_filter([$shop->name, $shop->address, $shop->city]))));
     $isOpenHere = $openVisit && $openVisit->shop_id === $shop->id;
@@ -23,25 +23,25 @@
             <div class="f-shop-meta">{{ $shop->owner_name }}{{ $shop->city || $shop->territory ? ' · '.($shop->city ?: $shop->territory?->name) : '' }}</div>
             <div class="f-chips">
                 @if ($isOpenHere)
-                    <span class="f-chip amber">I'm here</span>
+                    <span class="f-chip amber">{{ __('field.im_here') }}</span>
                 @elseif ($shop->visited_today)
-                    <span class="f-chip green">Visited today</span>
+                    <span class="f-chip green">{{ __('field.visited_today') }}</span>
                 @elseif ($shop->last_visit_at)
-                    <span class="f-chip">Last visit {{ $shop->last_visit_at->diffForHumans(null, true) }} ago</span>
+                    <span class="f-chip">{{ __('field.last_visit_ago', ['when' => $shop->last_visit_at->diffForHumans(null, true)]) }}</span>
                 @else
-                    <span class="f-chip amber">Never visited</span>
+                    <span class="f-chip amber">{{ __('field.never_visited') }}</span>
                 @endif
                 @if ($shop->status === \App\Models\Shop::STATUS_PENDING)
-                    <span class="f-chip amber">Awaiting approval</span>
+                    <span class="f-chip amber">{{ __('field.awaiting_approval') }}</span>
                 @else
-                    <span class="f-chip {{ $outstanding > 0 ? 'red' : '' }}">Baki {{ \App\Support\DemoData::taka($outstanding) }}</span>
+                    <span class="f-chip {{ $outstanding > 0 ? 'red' : '' }}">{{ __('field.baki') }} {{ \App\Support\DemoData::taka($outstanding) }}</span>
                 @endif
                 @if (! empty($shop->is_mine))
-                    <span class="f-chip green">My shop</span>
+                    <span class="f-chip green">{{ __('field.my_shop') }}</span>
                 @elseif ($shop->assignedSalesman)
                     <span class="f-chip">{{ $shop->assignedSalesman->name }}</span>
                 @else
-                    <span class="f-chip amber">Unassigned</span>
+                    <span class="f-chip amber">{{ __('field.unassigned') }}</span>
                 @endif
                 @if ($shop->priceGroup)
                     <span class="f-chip">{{ $shop->priceGroup->name }}</span>
@@ -51,11 +51,11 @@
     </div>
     <div class="f-shop-actions">
         @if ($phone)
-            <a class="f-btn f-btn-ghost f-btn-icon" href="tel:{{ $phone }}" aria-label="Call {{ $shop->owner_name ?: $shop->name }}"><i data-lucide="phone"></i></a>
+            <a class="f-btn f-btn-ghost f-btn-icon" href="tel:{{ $phone }}" aria-label="{{ __('field.call') }} {{ $shop->owner_name ?: $shop->name }}"><i data-lucide="phone"></i></a>
         @endif
-        <a class="f-btn f-btn-ghost f-btn-icon" href="https://www.google.com/maps/search/?api=1&query={{ $mapQuery }}" target="_blank" rel="noopener" aria-label="Directions to {{ $shop->name }}"><i data-lucide="map-pin"></i></a>
+        <a class="f-btn f-btn-ghost f-btn-icon" href="https://www.google.com/maps/search/?api=1&query={{ $mapQuery }}" target="_blank" rel="noopener" aria-label="{{ __('field.directions') }} {{ $shop->name }}"><i data-lucide="map-pin"></i></a>
         @if ($isOpenHere)
-            <a class="f-btn f-btn-warn" style="flex:1" href="{{ route('field.visit.show', $openVisit) }}"><i data-lucide="store"></i> Continue visit</a>
+            <a class="f-btn f-btn-warn" style="flex:1" href="{{ route('field.visit.show', $openVisit) }}"><i data-lucide="store"></i> {{ __('field.continue_visit') }}</a>
             @include('field.partials.leave-shop', [
                 'leaveVisit' => $openVisit,
                 'leaveRedirect' => 'shops',
@@ -66,7 +66,7 @@
                 'leaveVisit' => $openVisit,
                 'leaveRedirect' => 'shops',
                 'leaveClass' => 'f-btn f-btn-ghost',
-                'leaveLabel' => 'Leave '.$openVisit->shop?->name.' first',
+                'leaveLabel' => __('field.leave_shop_first', ['shop' => $openVisit->shop?->name]),
             ])
         @elseif (! empty($shop->is_mine))
             <form method="post" action="{{ route('field.shops.check-in', $shop) }}" data-checkin style="flex:1">
@@ -74,14 +74,14 @@
                 <input type="hidden" name="purpose" value="Shop visit">
                 <input type="hidden" name="latitude">
                 <input type="hidden" name="longitude">
-                <button class="f-btn f-btn-primary" style="width:100%" type="submit"><i data-lucide="map-pin"></i> Visit</button>
+                <button class="f-btn f-btn-primary" style="width:100%" type="submit"><i data-lucide="map-pin"></i> {{ __('field.visit') }}</button>
             </form>
         @else
             <form method="post" action="{{ route('field.shops.order', $shop) }}" data-checkin style="flex:1">
                 @csrf
                 <input type="hidden" name="latitude">
                 <input type="hidden" name="longitude">
-                <button class="f-btn f-btn-primary" style="width:100%" type="submit"><i data-lucide="shopping-bag"></i> Order</button>
+                <button class="f-btn f-btn-primary" style="width:100%" type="submit"><i data-lucide="shopping-bag"></i> {{ __('field.order_action') }}</button>
             </form>
         @endif
     </div>

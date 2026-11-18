@@ -35,6 +35,7 @@ use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -99,7 +100,10 @@ class FieldPortalController extends Controller
         $trend = collect(range(6, 0))->map(function (int $ago) use ($weekTotals) {
             $day = today()->subDays($ago);
 
-            return ['label' => $ago === 0 ? 'Today' : $day->format('D'), 'total' => (float) ($weekTotals[$day->toDateString()] ?? 0)];
+            return [
+                'label' => $ago === 0 ? __('field.today') : $day->translatedFormat('D'),
+                'total' => (float) ($weekTotals[$day->toDateString()] ?? 0),
+            ];
         });
 
         return view('field.dashboard', [
@@ -139,7 +143,7 @@ class FieldPortalController extends Controller
             'shopsAddedMonth' => Shop::query()->where('created_by', $user->id)->where('created_at', '>=', now()->startOfMonth())->count(),
             'shopsPending' => Shop::query()->where('created_by', $user->id)->where('status', Shop::STATUS_PENDING)->count(),
             'loginsToCreate' => $this->loginsToCreate($user),
-            'shopsOutstanding' => (float) $shops->sum('outstanding_balance'),
+            'shopsOutstanding' => round((float) $shops->sum(fn (Shop $s) => $s->fieldOutstanding()), 2),
             'targetMet' => $salesTarget?->target_met || ($target > 0 && $achieved >= $target),
         ]);
     }
@@ -278,17 +282,26 @@ class FieldPortalController extends Controller
 
         $this->assertLiveCameraPhoto($request);
 
+        $data['name'] = trim((string) ($data['name'] ?? '')) ?: 'New shop '.$this->shops->nextCode();
+
         if (! empty($data['phone'])) {
             $data['phone'] = BangladeshPhone::normalize($data['phone']);
             $existing = Shop::query()->where('phone', $data['phone'])->first();
             if ($existing) {
+                // Same salesman double-tapped Save — treat as already added, not an error.
+                if ((int) $existing->created_by === (int) $user->id
+                    && $existing->created_at
+                    && $existing->created_at->gte(now()->subMinutes(5))
+                    && mb_strtolower(trim($existing->name)) === mb_strtolower($data['name'])) {
+                    return redirect()->route('field.shops')
+                        ->with('success', $existing->name.' is already saved.');
+                }
+
                 throw ValidationException::withMessages([
                     'phone' => "This phone number already belongs to {$existing->name} ({$existing->code}).",
                 ]);
             }
         }
-
-        $data['name'] = trim((string) ($data['name'] ?? '')) ?: 'New shop '.$this->shops->nextCode();
         $data['owner_name'] = trim((string) ($data['owner_name'] ?? ''));
         foreach (['division', 'district', 'thana', 'post_office', 'location'] as $geoKey) {
             $data[$geoKey] = trim((string) ($data[$geoKey] ?? '')) ?: null;
@@ -326,47 +339,79 @@ class FieldPortalController extends Controller
 
         unset($data['photo']);
 
-        $shop = $this->shops->create($data + [
-            'status' => Shop::STATUS_ACTIVE,
-            'assigned_salesman_id' => $user->id,
-            'territory_id' => $user->salesmanProfile?->territory_id,
-            // Match admin form default so orders are not blocked by a zero credit limit.
-            'credit_limit' => $data['credit_limit'] ?? 150000,
-        ], $user, $credential);
-
-        if ($file = $request->file('photo')) {
-            $path = $file->store('shops/'.$shop->id, 'public');
-            $shop->forceFill(['photo_path' => $path])->save();
+        // Double-tap / slow network can POST twice — create at most one shop.
+        $lock = Cache::lock('field-shop-create:'.$user->id, 15);
+        if (! $lock->block(8)) {
+            return back()->withInput()->with('error', 'Still saving the shop — wait a second and check My shops.');
         }
 
         try {
-            $this->notifications->shopAddedFromField($shop, $user);
-        } catch (\Throwable $e) {
-            report($e);
-        }
+            if ($twin = $this->recentFieldShopTwin($user, $data)) {
+                return redirect()->route('field.shops')
+                    ->with('success', $twin->name.' is already saved.');
+            }
 
-        if ($request->boolean('check_in') && ! $this->openVisit($user)) {
-            $this->visits->checkIn($user, $shop, [
-                'purpose' => 'New shop',
-                'latitude' => $data['latitude'] ?? null,
-                'longitude' => $data['longitude'] ?? null,
-            ]);
-        }
+            $shop = $this->shops->create($data + [
+                'status' => Shop::STATUS_ACTIVE,
+                'assigned_salesman_id' => $user->id,
+                'territory_id' => $user->salesmanProfile?->territory_id,
+                // Match admin form default so orders are not blocked by a zero credit limit.
+                'credit_limit' => $data['credit_limit'] ?? 150000,
+            ], $user, $credential);
 
-        if ($credential && $plainPassword) {
-            return redirect()->route('field.shops.login', $shop)
-                ->with('login_result', $this->shopLoginResult($shop->fresh(['users']), $credential['email'], $plainPassword))
-                ->with('success', $shop->name.' added with owner login.');
-        }
+            if ($file = $request->file('photo')) {
+                $path = $file->store('shops/'.$shop->id, 'public');
+                $shop->forceFill(['photo_path' => $path])->save();
+            }
 
-        $openVisit = $this->openVisit($user);
-        if ($openVisit && (int) $openVisit->shop_id === (int) $shop->id) {
-            return redirect()->route('field.visit.show', $openVisit)
+            try {
+                $this->notifications->shopAddedFromField($shop, $user);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            if ($request->boolean('check_in') && ! $this->openVisit($user)) {
+                $this->visits->checkIn($user, $shop, [
+                    'purpose' => 'New shop',
+                    'latitude' => $data['latitude'] ?? null,
+                    'longitude' => $data['longitude'] ?? null,
+                ]);
+            }
+
+            if ($credential && $plainPassword) {
+                return redirect()->route('field.shops.login', $shop)
+                    ->with('login_result', $this->shopLoginResult($shop->fresh(['users']), $credential['email'], $plainPassword))
+                    ->with('success', $shop->name.' added with owner login.');
+            }
+
+            $openVisit = $this->openVisit($user);
+            if ($openVisit && (int) $openVisit->shop_id === (int) $shop->id) {
+                return redirect()->route('field.visit.show', $openVisit)
+                    ->with('success', $shop->name.' added and approved. You can take orders now.');
+            }
+
+            return redirect()->route('field.shops')
                 ->with('success', $shop->name.' added and approved. You can take orders now.');
+        } finally {
+            optional($lock)->release();
+        }
+    }
+
+    /**
+     * Same salesman + same shop name (+ phone when set) within a few minutes = accidental double save.
+     */
+    private function recentFieldShopTwin(User $user, array $data): ?Shop
+    {
+        $query = Shop::query()
+            ->where('created_by', $user->id)
+            ->where('name', $data['name'])
+            ->where('created_at', '>=', now()->subMinutes(5));
+
+        if (! empty($data['phone'])) {
+            $query->where('phone', $data['phone']);
         }
 
-        return redirect()->route('field.shops')
-            ->with('success', $shop->name.' added and approved. You can take orders now.');
+        return $query->latest('id')->first();
     }
 
     public function shopLogin(Request $request, Shop $shop)
@@ -1391,11 +1436,14 @@ class FieldPortalController extends Controller
             return $this->visits->cancelMistake($visit, $request->user());
         }
 
-        $needsPhoto = $visit->needsPhotoEvidence();
+        $outcomeHint = (string) $request->input('outcome', ShopVisit::OUTCOME_NO_ORDER);
+        $shopClosed = ! $visit->order_id && $outcomeHint === ShopVisit::OUTCOME_CLOSED;
+        // Shop was closed — no owner talk / photo required.
+        $needsPhoto = ! $shopClosed && $visit->needsPhotoEvidence();
 
         $data = $request->validate([
             'outcome' => ['nullable', 'in:order_taken,no_order,closed,follow_up'],
-            'notes' => ['required', 'string', 'max:1000'],
+            'notes' => [$shopClosed ? 'nullable' : 'required', 'string', 'max:1000'],
             'photo' => [$needsPhoto ? 'required' : 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'photo_captured' => [$needsPhoto || $request->hasFile('photo') ? 'required' : 'nullable', 'in:1'],
         ], [
@@ -1426,9 +1474,14 @@ class FieldPortalController extends Controller
             $outcome = ShopVisit::OUTCOME_NO_ORDER;
         }
 
+        $notes = trim((string) ($data['notes'] ?? ''));
+        if ($notes === '' && $outcome === ShopVisit::OUTCOME_CLOSED) {
+            $notes = 'Shop was closed.';
+        }
+
         return $this->visits->checkOut($visit, [
             'outcome' => $outcome,
-            'notes' => $data['notes'] ?? $visit->notes,
+            'notes' => $notes !== '' ? $notes : $visit->notes,
             'photo_path' => $photoPath,
         ], $request->user());
     }

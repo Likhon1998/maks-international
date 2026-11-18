@@ -139,6 +139,41 @@ class FieldVisitLeaveTest extends TestCase
         $this->assertSame(ShopVisit::OUTCOME_IN_PROGRESS, $visit->fresh()->outcome);
     }
 
+    public function test_shop_closed_leave_allows_empty_notes_and_no_photo(): void
+    {
+        $salesman = User::where('email', 'karim@field.local')->firstOrFail();
+        $shop = Shop::query()->where('status', Shop::STATUS_ACTIVE)->firstOrFail();
+        $shop->update(['assigned_salesman_id' => $salesman->id]);
+
+        ShopVisit::query()
+            ->where('salesman_id', $salesman->id)
+            ->whereNull('checked_out_at')
+            ->update(['checked_out_at' => now()]);
+
+        $visit = ShopVisit::query()->create([
+            'shop_id' => $shop->id,
+            'salesman_id' => $salesman->id,
+            'checked_in_at' => now(),
+            'purpose' => 'Order collection',
+            'outcome' => ShopVisit::OUTCOME_IN_PROGRESS,
+        ]);
+
+        $this->actingAs($salesman)
+            ->post(route('field.visit.leave', $visit), [
+                'outcome' => ShopVisit::OUTCOME_CLOSED,
+                'redirect' => 'shops',
+            ])
+            ->assertRedirect(route('field.shops'))
+            ->assertSessionHas('success')
+            ->assertSessionHasNoErrors();
+
+        $visit->refresh();
+        $this->assertNotNull($visit->checked_out_at);
+        $this->assertSame(ShopVisit::OUTCOME_CLOSED, $visit->outcome);
+        $this->assertSame('Shop was closed.', $visit->notes);
+        $this->assertNull($visit->photo_path);
+    }
+
     public function test_opened_by_mistake_cancels_without_notes_or_photo_and_shop_stays_unvisited(): void
     {
         $salesman = User::where('email', 'karim@field.local')->firstOrFail();

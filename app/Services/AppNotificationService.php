@@ -86,10 +86,10 @@ class AppNotificationService
     {
         $this->notifyAdmins(
             "New shop added by {$salesman->name}",
-            $shop->name.' · '.($shop->city ?: 'No area').' · '.$shop->code.' · waiting for approval',
+            $shop->name.' · '.($shop->city ?: 'No area').' · '.$shop->code.' · approved by salesman (ready for orders)',
             '/admin/shops/'.$shop->id,
             'shops',
-            'warning',
+            'info',
         );
     }
 

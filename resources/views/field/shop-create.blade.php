@@ -25,11 +25,11 @@
 @endphp
 @section('actions')
     <a class="f-btn f-btn-ghost f-btn-sm" href="{{ route('field.shops') }}">Cancel</a>
-    <button class="f-btn f-btn-primary f-btn-sm" type="submit" form="add-shop"><i data-lucide="check"></i> Save shop</button>
+    <button class="f-btn f-btn-primary f-btn-sm" type="submit" form="add-shop" data-add-shop-submit><i data-lucide="check"></i> Save shop</button>
 @endsection
 @section('content')
     <form id="add-shop" method="post" action="{{ route('field.shops.store') }}" class="f-split as-form" enctype="multipart/form-data"
-          x-data="addShop(@js($initial))" @submit="saving = true">
+          x-data="addShop(@js($initial))" @submit="guardSubmit($event)">
         @csrf
         <input type="hidden" name="latitude" :value="lat ?? ''">
         <input type="hidden" name="longitude" :value="lng ?? ''">
@@ -210,7 +210,7 @@
                     <div class="as-meter-top"><span>Details added</span><b x-text="filled() + ' of 7'"></b></div>
                     <div class="as-meter-bar"><span :style="'width:' + Math.max(4, filled() / 7 * 100) + '%'"></span></div>
                 </div>
-                <button class="f-btn f-btn-primary f-btn-lg f-btn-block" type="submit" :disabled="saving">
+                <button class="f-btn f-btn-primary f-btn-lg f-btn-block" type="submit" data-add-shop-submit :disabled="saving">
                     <i data-lucide="check"></i> <span x-text="saving ? 'Saving…' : (f.createLogin ? 'Save shop + login' : 'Save shop')"></span>
                 </button>
                 <p class="as-foot"><i data-lucide="shield-check"></i> Shop is approved immediately. Owner login lets them use the partner portal.</p>
@@ -223,7 +223,7 @@
                 <small x-text="filled() + ' of 7 · ' + (f.createLogin ? 'with login' : 'no login') + ' · ' + (state === 'ok' ? 'GPS' : 'no GPS')"></small>
                 <strong x-text="f.name || 'New shop'"></strong>
             </div>
-            <button class="f-btn f-btn-success" type="submit" :disabled="saving">
+            <button class="f-btn f-btn-success" type="submit" data-add-shop-submit :disabled="saving">
                 <i data-lucide="check"></i> <span x-text="saving ? 'Saving…' : 'Save'"></span>
             </button>
         </div>
@@ -243,6 +243,16 @@ function addShop(initial) {
             this.locate();
             await this.bootGeo();
             this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+        },
+        guardSubmit(event) {
+            if (this.saving) {
+                event.preventDefault();
+                return;
+            }
+            this.saving = true;
+            document.querySelectorAll('[data-add-shop-submit]').forEach((btn) => {
+                btn.disabled = true;
+            });
         },
         filled() {
             return [

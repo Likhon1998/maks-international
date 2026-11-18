@@ -2,7 +2,7 @@
     $leaveVisit = $leaveVisit ?? $openVisit ?? $fieldOpenVisit ?? null;
     $leaveRedirect = $leaveRedirect ?? 'shops';
     $leaveClass = $leaveClass ?? 'f-btn f-btn-ghost f-btn-sm';
-    $leaveLabel = $leaveLabel ?? "I'm leaving";
+    $leaveLabel = $leaveLabel ?? __('field.im_leaving_btn');
     $onThisVisit = $leaveVisit && request()->routeIs('field.visit.show') && optional(request()->route('visit'))->id === $leaveVisit->id;
 @endphp
 @if ($leaveVisit)

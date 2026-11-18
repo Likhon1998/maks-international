@@ -1,5 +1,5 @@
 @extends('field.layouts.app')
-@section('title', 'Home')
+@section('title', __('field.home'))
 @php
     $hour = (int) now()->format('G');
     $greeting = $hour < 12 ? __('field.good_morning') : ($hour < 17 ? __('field.good_afternoon') : __('field.good_evening'));
@@ -34,7 +34,6 @@
             </div>
         @endif
 
-        {{-- Hero + 4 equal stats (no orphan cells) --}}
         <div class="f-home-hero f-kpi tone-violet">
             <div class="f-kpi-top">
                 <span class="f-ico"><i data-lucide="trending-up"></i></span>
@@ -44,8 +43,15 @@
             <div class="f-kpi-value">{{ \App\Support\DemoData::taka($monthTotal) }}</div>
             <div class="f-kpi-meta">
                 @if ($progress !== null)
-                    Delivered {{ \App\Support\DemoData::taka($achieved) }} of {{ \App\Support\DemoData::taka($target) }}
-                    · @if ($toGo > 0)<b>{{ \App\Support\DemoData::taka($toGo) }}</b> to go · {{ $daysLeft }}d left @else <b>Target reached</b> @endif
+                    {{ __('field.delivered_of_target', [
+                        'achieved' => \App\Support\DemoData::taka($achieved),
+                        'target' => \App\Support\DemoData::taka($target),
+                    ]) }}
+                    · @if ($toGo > 0)
+                        {{ __('field.to_go', ['amount' => \App\Support\DemoData::taka($toGo), 'days' => $daysLeft]) }}
+                    @else
+                        <b>{{ __('field.target_reached') }}</b>
+                    @endif
                 @else
                     {{ __('field.no_target') }}
                 @endif
@@ -83,40 +89,41 @@
             @php $weekMax = max(1, collect($visitWeek)->max('shops')); @endphp
             <div class="f-weeklog">
                 <div class="f-weeklog-head">
-                    <strong>Shops visited each day</strong>
-                    <a href="{{ route('field.visits') }}">Full log ›</a>
+                    <strong>{{ __('field.shops_visited_each_day') }}</strong>
+                    <a href="{{ route('field.visits') }}">{{ __('field.full_log') }}</a>
                 </div>
                 <div class="f-weeklog-bars">
                     @foreach ($visitWeek as $day)
-                        <a class="f-weeklog-col {{ $day['date']->isToday() ? 'today' : '' }}" href="{{ route('field.visits') }}" title="{{ $day['date']->format('D d M') }}: {{ $day['shops'] }} shops">
+                        <a class="f-weeklog-col {{ $day['date']->isToday() ? 'today' : '' }}" href="{{ route('field.visits') }}"
+                           title="{{ __('field.weeklog_day_title', ['day' => $day['date']->translatedFormat('D d M'), 'count' => $day['shops']]) }}">
                             <em>{{ $day['shops'] ?: '' }}</em>
                             <span class="f-weeklog-bar {{ $day['shops'] ? '' : 'zero' }}" style="height: {{ $day['shops'] ? max(8, round($day['shops'] / $weekMax * 100)) : 4 }}%"></span>
-                            <small>{{ $day['date']->isToday() ? 'Today' : $day['date']->format('D') }}</small>
+                            <small>{{ $day['date']->isToday() ? __('field.today') : $day['date']->translatedFormat('D') }}</small>
                         </a>
                     @endforeach
                 </div>
             </div>
             <div class="f-today-stats">
                 <div class="f-today-stat">
-                    <span>Assigned shops</span>
+                    <span>{{ __('field.assigned_shops') }}</span>
                     <b>{{ $visitedCount }}/{{ $shopCount }}</b>
-                    <small>{{ max(0, $shopCount - $visitedCount) }} still to visit</small>
+                    <small>{{ __('field.still_to_visit', ['count' => max(0, $shopCount - $visitedCount)]) }}</small>
                 </div>
                 <div class="f-today-stat">
-                    <span>Visits today</span>
+                    <span>{{ __('field.visits_today') }}</span>
                     <b>{{ $todayVisits }}</b>
-                    <small>Talk + photo at the shop</small>
+                    <small>{{ __('field.talk_photo') }}</small>
                 </div>
                 <div class="f-today-stat">
-                    <span>New shops today</span>
+                    <span>{{ __('field.new_shops_today') }}</span>
                     <b>{{ $todayAddedCount }}</b>
-                    <small>Added by you · not a visit</small>
+                    <small>{{ __('field.added_by_you') }}</small>
                 </div>
             </div>
 
             <div class="f-today-grid">
                 <div class="f-today-col">
-                    <h3><i data-lucide="map-pin"></i> Visits <a href="{{ route('field.visits') }}" class="f-today-more">Log ›</a></h3>
+                    <h3><i data-lucide="map-pin"></i> {{ __('field.visits') }} <a href="{{ route('field.visits') }}" class="f-today-more">{{ __('field.log') }}</a></h3>
                     @forelse ($todayVisitList as $dayVisit)
                         <a class="f-today-row" href="{{ route('field.visit.show', $dayVisit) }}">
                             @if ($dayVisit->photoUrl())
@@ -128,18 +135,18 @@
                             @endif
                             <span>
                                 <b>{{ $dayVisit->shop?->name }}</b>
-                                <small>{{ $dayVisit->checked_in_at?->format('g:i A') }} · {{ $dayVisit->isOpen() ? 'Still there' : $dayVisit->outcomeLabel() }}</small>
+                                <small>{{ $dayVisit->checked_in_at?->format('g:i A') }} · {{ $dayVisit->isOpen() ? __('field.still_there') : $dayVisit->outcomeLabel() }}</small>
                                 @if ($dayVisit->notes)
                                     <small class="note">{{ \Illuminate\Support\Str::limit($dayVisit->notes, 80) }}</small>
                                 @endif
                             </span>
                         </a>
                     @empty
-                        <p class="f-muted f-small">No visits yet today. Check in at an assigned shop to record a visit.</p>
+                        <p class="f-muted f-small">{{ __('field.no_visits_today') }}</p>
                     @endforelse
                 </div>
                 <div class="f-today-col">
-                    <h3><i data-lucide="store"></i> New shops</h3>
+                    <h3><i data-lucide="store"></i> {{ __('field.new_shops_today') }}</h3>
                     @forelse ($todayAddedList as $added)
                         <div class="f-today-row">
                             @if ($added->photoUrl())
@@ -158,7 +165,7 @@
                             </span>
                         </div>
                     @empty
-                        <p class="f-muted f-small">No new shops added today. <a href="{{ route('field.shops.create') }}">Add a shop</a> when you find a new retailer.</p>
+                        <p class="f-muted f-small">{{ __('field.no_new_shops_today') }} <a href="{{ route('field.shops.create') }}">{{ __('field.add_shop') }}</a> — {{ __('field.add_shop_when_found') }}</p>
                     @endforelse
                 </div>
             </div>
@@ -167,20 +174,20 @@
         <div class="f-grid-main f-home-grid">
             <section class="f-panel f-home-route">
                 <div class="f-panel-head">
-                    <h2><span class="f-ico tone-blue"><i data-lucide="route"></i></span>Assigned shops</h2>
+                    <h2><span class="f-ico tone-blue"><i data-lucide="route"></i></span>{{ __('field.assigned_shops') }}</h2>
                     <span class="f-home-links">
-                        <a href="{{ route('field.shops.create') }}">+ Shop</a>
-                        <a href="{{ route('field.shops') }}">All ›</a>
+                        <a href="{{ route('field.shops.create') }}">{{ __('field.plus_shop') }}</a>
+                        <a href="{{ route('field.shops') }}">{{ __('field.all_shops') }}</a>
                     </span>
                 </div>
                 <div class="f-table-wrap f-desktop-only">
                     <table class="f-table f-table-shops">
-                        <thead><tr><th>Shop</th><th>Area</th><th>Last visit</th><th class="num">Baki</th><th></th></tr></thead>
+                        <thead><tr><th>{{ __('field.shop') }}</th><th>{{ __('field.area') }}</th><th>{{ __('field.last_visit') }}</th><th class="num">{{ __('field.baki') }}</th><th></th></tr></thead>
                         <tbody>
                             @forelse ($routeShops as $shop)
                                 @include('field.partials.shop-row', ['shop' => $shop, 'openVisit' => $openVisit])
                             @empty
-                                <tr><td colspan="5" class="empty">No shops on your route yet. <a href="{{ route('field.shops.create') }}">Add a shop</a> or take an order for any active shop.</td></tr>
+                                <tr><td colspan="5" class="empty">{{ __('field.no_route_shops') }} <a href="{{ route('field.shops.create') }}">{{ __('field.add_shop') }}</a> — {{ __('field.add_shop_or_order') }}</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -191,13 +198,13 @@
                     @empty
                         <div class="f-empty compact">
                             <i data-lucide="store"></i>
-                            <strong>No shops yet</strong>
-                            <a href="{{ route('field.shops.create') }}">Add your first shop</a>
-                            or open <a href="{{ route('field.orders.create') }}">New order</a>.
+                            <strong>{{ __('field.no_shops_yet') }}</strong>
+                            <a href="{{ route('field.shops.create') }}">{{ __('field.add_first_shop') }}</a>
+                            {{ __('field.or_open') }} <a href="{{ route('field.orders.create') }}">{{ __('field.new_order') }}</a>.
                         </div>
                     @endforelse
                     @if ($toVisit->isEmpty() && $shopCount > 0)
-                        <p class="f-home-note"><i data-lucide="check-circle-2"></i> All assigned shops visited today</p>
+                        <p class="f-home-note"><i data-lucide="check-circle-2"></i> {{ __('field.all_assigned_visited') }}</p>
                     @endif
                 </div>
             </section>
@@ -205,12 +212,12 @@
             <div class="f-home-side">
                 <section class="f-panel">
                     <div class="f-panel-head">
-                        <h2><span class="f-ico tone-violet"><i data-lucide="bar-chart-3"></i></span>Last 7 days</h2>
+                        <h2><span class="f-ico tone-violet"><i data-lucide="bar-chart-3"></i></span>{{ __('field.last_7_days') }}</h2>
                         <span class="f-chip violet">{{ \App\Support\DemoData::taka($weekTotal) }}</span>
                     </div>
                     <div class="f-panel-body f-trend-wrap">
                         @if ($weekTotal <= 0)
-                            <div class="f-trend-empty">No orders this week.<br><a href="{{ route('field.orders.create') }}">Start an order ›</a></div>
+                            <div class="f-trend-empty">{{ __('field.no_orders_this_week') }}<br><a href="{{ route('field.orders.create') }}">{{ __('field.start_an_order') }}</a></div>
                         @endif
                         <div class="f-trend">
                             @foreach ($trend as $day)
@@ -228,15 +235,15 @@
 
         <section class="f-panel f-home-orders">
             <div class="f-panel-head">
-                <h2><span class="f-ico tone-amber"><i data-lucide="receipt-text"></i></span>Recent orders</h2>
-                <a href="{{ route('field.orders') }}">See all ›</a>
+                <h2><span class="f-ico tone-amber"><i data-lucide="receipt-text"></i></span>{{ __('field.recent_orders') }}</h2>
+                <a href="{{ route('field.orders') }}">{{ __('field.see_all') }}</a>
             </div>
             @if ($recentOrders->isEmpty())
                 <div class="f-panel-body f-home-orders-body">
                     <div class="f-empty compact">
                         <i data-lucide="receipt-text"></i>
-                        <strong>No orders yet</strong>
-                        <a href="{{ route('field.orders.create') }}">Take your first order</a>
+                        <strong>{{ __('field.no_orders_yet') }}</strong>
+                        <a href="{{ route('field.orders.create') }}">{{ __('field.take_first_order') }}</a>
                     </div>
                 </div>
             @else
@@ -244,12 +251,12 @@
                     <table class="f-table f-table-orders">
                         <thead>
                             <tr>
-                                <th>Shop</th>
-                                <th class="f-table-orders-wide">Order</th>
-                                <th class="f-table-orders-wide">Date</th>
-                                        <th class="num">Total</th>
-                                        <th class="num">Baki</th>
-                                        <th class="status">Status</th>
+                                <th>{{ __('field.shop') }}</th>
+                                <th class="f-table-orders-wide">{{ __('field.order') }}</th>
+                                <th class="f-table-orders-wide">{{ __('field.date') }}</th>
+                                <th class="num">{{ __('field.total') }}</th>
+                                <th class="num">{{ __('field.baki') }}</th>
+                                <th class="status">{{ __('field.status_col') }}</th>
                             </tr>
                         </thead>
                         <tbody>

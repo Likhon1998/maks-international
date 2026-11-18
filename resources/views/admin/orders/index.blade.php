@@ -52,7 +52,7 @@
                 >
                 <select class="select select-sm" x-model="status" @change="syncUrl()">
                     <option value="">All statuses</option>
-                    <option value="pending_audit">Pending Super Admin Audit</option>
+                    <option value="pending_audit">Pending audit</option>
                     <option value="awaiting_advance">Awaiting Advance</option>
                     <option value="approved">Approved</option>
                     <option value="delivered">Delivered</option>
@@ -72,7 +72,19 @@
 
         <div class="card orders-desk-table">
             <div class="table-wrap">
-                <table class="data data-dense">
+                <table class="data data-dense orders-table">
+                    <colgroup>
+                        <col class="col-order">
+                        <col class="col-shop">
+                        <col class="col-hide-md">
+                        <col class="col-hide-lg">
+                        <col class="col-hide-md">
+                        <col class="col-hide-lg">
+                        <col class="col-total">
+                        <col class="col-hide-lg">
+                        <col class="col-status">
+                        <col class="col-actions">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Order</th>
@@ -83,7 +95,7 @@
                             <th class="col-hide-lg">Lines</th>
                             <th>Total</th>
                             <th class="col-hide-lg">Submitted</th>
-                            <th>Status</th>
+                            <th class="status">Status</th>
                             <th class="actions"></th>
                         </tr>
                     </thead>
@@ -101,8 +113,8 @@
                                     <div class="muted" style="font-size:10px;font-weight:600" x-show="row.price_changed">Price changed</div>
                                 </td>
                                 <td class="muted col-hide-lg" x-text="row.submitted_at"></td>
-                                <td>
-                                    <span class="badge" :class="row.status_badge" x-text="row.status_label"></span>
+                                <td class="status">
+                                    <span class="badge" :class="row.status_badge" x-text="row.status_label" title="Open the order to audit / approve"></span>
                                 </td>
                                 <td class="actions">
                                     <div class="row-menu" x-data="{ open: false }" @keydown.escape.window="open = false">

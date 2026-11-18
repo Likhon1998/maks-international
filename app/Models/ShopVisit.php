@@ -83,12 +83,12 @@ class ShopVisit extends Model
     public function outcomeLabel(): string
     {
         return match ($this->outcome) {
-            self::OUTCOME_ORDER_TAKEN => 'Order taken',
-            self::OUTCOME_NO_ORDER => 'No order',
-            self::OUTCOME_CLOSED => 'Shop closed',
-            self::OUTCOME_FOLLOW_UP => 'Follow-up needed',
-            self::OUTCOME_CANCELLED => 'Opened by mistake',
-            default => 'In progress',
+            self::OUTCOME_ORDER_TAKEN => __('field.outcome.order_taken'),
+            self::OUTCOME_NO_ORDER => __('field.outcome.no_order'),
+            self::OUTCOME_CLOSED => __('field.outcome.closed'),
+            self::OUTCOME_FOLLOW_UP => __('field.outcome.follow_up'),
+            self::OUTCOME_CANCELLED => __('field.outcome.cancelled'),
+            default => __('field.outcome.in_progress'),
         };
     }
 

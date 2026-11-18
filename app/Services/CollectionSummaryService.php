@@ -50,24 +50,29 @@ class CollectionSummaryService
             ->filter()
             ->groupBy(fn (array $row) => $row['order']->shop_id);
 
+        $pendingByShop = $this->pendingCollectedByShop($shops->pluck('id'));
+
         return $shops
-            ->map(function (Shop $shop) use ($ordersByShop) {
+            ->map(function (Shop $shop) use ($ordersByShop, $pendingByShop) {
                 $orders = ($ordersByShop->get($shop->id) ?? collect())->values();
                 $ordersDue = round((float) $orders->sum('due'), 2);
-                $ledger = round((float) $shop->outstanding_balance, 2);
+                $pending = round((float) ($pendingByShop[$shop->id] ?? 0), 2);
+                // Ledger ignores pending আদায় until office verifies — field UI must subtract it.
+                $ledger = max(0, round((float) $shop->outstanding_balance - $pending, 2));
 
                 return [
                     'shop' => $shop,
                     'person' => $shop->owner_name ?: $shop->name,
-                    // Prefer ledger; if delivered-not-yet-invoiced, fall back to open order dues.
+                    // Prefer effective ledger; if delivered-not-yet-invoiced, fall back to open order dues.
                     'baki' => round(max($ledger, $ordersDue), 2),
+                    'pending' => $pending,
                     'orders' => $orders,
                     'order_count' => $orders->count(),
                     'collectable' => round((float) $orders->where('can_collect', true)->sum('due'), 2),
                     'orders_due' => $ordersDue,
                 ];
             })
-            ->filter(fn (array $row) => $row['baki'] > 0.009 || $row['order_count'] > 0)
+            ->filter(fn (array $row) => $row['baki'] > 0.009 || $row['order_count'] > 0 || $row['pending'] > 0.009)
             ->sortByDesc('baki')
             ->values();
     }
@@ -93,12 +98,14 @@ class CollectionSummaryService
             ->values();
 
         $ordersDue = round((float) $orders->sum('due'), 2);
-        $ledger = round((float) $shop->outstanding_balance, 2);
+        $pending = $this->pendingCollectedForShop((int) $shop->id);
+        $ledger = max(0, round((float) $shop->outstanding_balance - $pending, 2));
 
         return [
             'shop' => $shop,
             'person' => $shop->owner_name ?: $shop->name,
             'baki' => round(max($ledger, $ordersDue), 2),
+            'pending' => $pending,
             'orders' => $orders,
             'order_count' => $orders->count(),
             'collectable' => round((float) $orders->where('can_collect', true)->sum('due'), 2),
@@ -180,14 +187,16 @@ class CollectionSummaryService
         return $shops
             ->map(function (Shop $shop) use ($totals) {
                 $row = $totals->get($shop->id);
+                $pending = round((float) ($row->pending ?? 0), 2);
 
                 return [
                     'shop' => $shop,
                     'person' => $shop->owner_name ?: $shop->name,
                     'received' => round((float) ($row->received ?? 0), 2),
-                    'pending' => round((float) ($row->pending ?? 0), 2),
+                    'pending' => $pending,
                     'you_collected' => round((float) ($row->you_collected ?? 0), 2),
-                    'baki' => round((float) $shop->outstanding_balance, 2),
+                    // Still-owed after আদায় waiting for office confirm.
+                    'baki' => max(0, round((float) $shop->outstanding_balance - $pending, 2)),
                     'receipts' => (int) ($row->receipts ?? 0),
                     'last_at' => ! empty($row?->last_at) ? Carbon::parse($row->last_at) : null,
                 ];
@@ -195,6 +204,35 @@ class CollectionSummaryService
             ->filter(fn (array $row) => $row['received'] > 0.009 || $row['pending'] > 0.009 || $row['baki'] > 0.009)
             ->sortByDesc('received')
             ->values();
+    }
+
+    /**
+     * @param  Collection<int, int|string>|array<int, int|string>  $shopIds
+     * @return array<int, float>
+     */
+    private function pendingCollectedByShop($shopIds): array
+    {
+        $ids = collect($shopIds)->filter()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        return Payment::query()
+            ->whereIn('shop_id', $ids)
+            ->where('status', Payment::STATUS_PENDING)
+            ->selectRaw('shop_id, SUM(amount) as total')
+            ->groupBy('shop_id')
+            ->pluck('total', 'shop_id')
+            ->map(fn ($n) => round((float) $n, 2))
+            ->all();
+    }
+
+    private function pendingCollectedForShop(int $shopId): float
+    {
+        return round((float) Payment::query()
+            ->where('shop_id', $shopId)
+            ->where('status', Payment::STATUS_PENDING)
+            ->sum('amount'), 2);
     }
 
     /**

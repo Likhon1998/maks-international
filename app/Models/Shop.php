@@ -127,13 +127,27 @@ class Shop extends Model
         return max(0, (float) $this->credit_limit - (float) $this->outstanding_balance);
     }
 
+    /**
+     * Ledger outstanding minus pending আদায় (not yet office-confirmed).
+     * Use this for salesman-facing baki so collected money reduces the number immediately.
+     */
+    public function fieldOutstanding(): float
+    {
+        $pending = round((float) Payment::query()
+            ->where('shop_id', $this->id)
+            ->where('status', Payment::STATUS_PENDING)
+            ->sum('amount'), 2);
+
+        return max(0, round((float) $this->outstanding_balance - $pending, 2));
+    }
+
     public function statusLabel(): string
     {
         return match ($this->status) {
-            self::STATUS_ACTIVE => 'Active',
-            self::STATUS_ON_HOLD => 'On Hold',
-            self::STATUS_REJECTED => 'Rejected',
-            default => 'Pending Approval',
+            self::STATUS_ACTIVE => __('field.shop_status.active'),
+            self::STATUS_ON_HOLD => __('field.shop_status.on_hold'),
+            self::STATUS_REJECTED => __('field.shop_status.rejected'),
+            default => __('field.shop_status.pending'),
         };
     }
 

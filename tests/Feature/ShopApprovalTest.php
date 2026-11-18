@@ -31,6 +31,22 @@ class ShopApprovalTest extends TestCase
         $this->assertGreaterThan(0, (float) $shop->credit_limit);
     }
 
+    public function test_double_submit_adds_shop_only_once(): void
+    {
+        $salesman = User::where('email', 'karim@field.local')->firstOrFail();
+        $payload = [
+            'name' => 'Once Only Shop',
+            'owner_name' => 'Owner',
+            'phone' => '01855667700',
+            'city' => 'Dhaka',
+        ];
+
+        $this->actingAs($salesman)->post(route('field.shops.store'), $payload)->assertSessionHasNoErrors();
+        $this->actingAs($salesman)->post(route('field.shops.store'), $payload)->assertSessionHasNoErrors();
+
+        $this->assertSame(1, Shop::query()->where('name', 'Once Only Shop')->where('created_by', $salesman->id)->count());
+    }
+
     public function test_add_shop_form_uses_bangladesh_mobile_field(): void
     {
         $salesman = User::where('email', 'karim@field.local')->firstOrFail();
@@ -129,7 +145,27 @@ class ShopApprovalTest extends TestCase
         $this->actingAs($admin)
             ->get(route('shops.show', $shop))
             ->assertOk()
-            ->assertSee('Approve shop');
+            ->assertSee('Activate shop');
+
+        $salesman = User::where('email', 'karim@field.local')->firstOrFail();
+        $fieldShop = Shop::query()->create([
+            'code' => 'SHP-FIELD1',
+            'name' => 'Field Active Shop',
+            'owner_name' => 'Owner',
+            'phone' => '01811229988',
+            'status' => Shop::STATUS_ACTIVE,
+            'approved_at' => now(),
+            'created_by' => $salesman->id,
+            'assigned_salesman_id' => $salesman->id,
+            'credit_limit' => 50000,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('shops.show', $fieldShop))
+            ->assertOk()
+            ->assertSee('Approved by salesman', false)
+            ->assertDontSee('Activate shop', false)
+            ->assertSee('Deactivate', false);
 
         $this->actingAs($admin)
             ->post(route('shops.approve', $shop))

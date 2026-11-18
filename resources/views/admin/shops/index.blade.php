@@ -86,7 +86,7 @@
                                         <template x-if="row.can_approve && row.approve_url">
                                             <form :action="row.approve_url" method="post">
                                                 @csrf
-                                                <button class="btn btn-primary btn-sm" type="submit">Approve</button>
+                                                <button class="btn btn-primary btn-sm" type="submit">Activate</button>
                                             </form>
                                         </template>
                                         <a class="btn btn-ghost btn-sm" :href="row.url">View</a>

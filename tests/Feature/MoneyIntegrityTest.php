@@ -192,8 +192,12 @@ class MoneyIntegrityTest extends TestCase
         $this->assertGreaterThan(0.009, $row['baki']);
         $this->assertEqualsWithDelta($row['orders']->sum('due'), $row['orders_due'], 0.001);
         $this->assertEqualsWithDelta($row['orders']->where('can_collect', true)->sum('due'), $row['collectable'], 0.001);
+        $pending = (float) \App\Models\Payment::query()
+            ->where('shop_id', $shop->id)
+            ->where('status', \App\Models\Payment::STATUS_PENDING)
+            ->sum('amount');
         $this->assertEqualsWithDelta(
-            max((float) $shop->outstanding_balance, (float) $row['orders_due']),
+            max(max(0, (float) $shop->outstanding_balance - $pending), (float) $row['orders_due']),
             $row['baki'],
             0.001
         );

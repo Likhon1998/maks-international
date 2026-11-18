@@ -11,7 +11,7 @@
             @can('shops.approve')
                 @if ($shop->status !== \App\Models\Shop::STATUS_ACTIVE)
                     <form action="{{ route('shops.approve', $shop) }}" method="post">@csrf
-                        <button class="btn btn-primary" type="submit">Approve shop</button>
+                        <button class="btn btn-primary" type="submit">Activate shop</button>
                     </form>
                 @else
                     <form action="{{ route('shops.deactivate', $shop) }}" method="post"
@@ -40,15 +40,24 @@
     @endif
 
     @if ($shop->creator?->portal === \App\Models\User::PORTAL_SALESMAN)
-        <div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-left:4px solid #D97706">
+        <div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-left:4px solid {{ $shop->status === \App\Models\Shop::STATUS_ACTIVE ? '#16A34A' : '#D97706' }}">
             <div>
-                <div style="font-weight:700">Added in the field by {{ $shop->creator->name }}</div>
+                <div style="font-weight:700">
+                    @if ($shop->status === \App\Models\Shop::STATUS_ACTIVE)
+                        Approved by salesman {{ $shop->creator->name }}
+                    @else
+                        Added in the field by {{ $shop->creator->name }}
+                    @endif
+                </div>
                 <div class="muted" style="font-size:13px;margin-top:2px">
                     {{ $shop->created_at?->format('d M Y, g:i A') }}
+                    @if ($shop->approved_at)
+                        · Activated {{ $shop->approved_at->format('d M Y, g:i A') }}
+                    @endif
                     @if ($shop->status === \App\Models\Shop::STATUS_PENDING)
-                        · Pending — approve to activate ordering, or edit price group / credit first.
+                        · Still pending — salesman can approve in the field app, or you can activate here.
                     @elseif ($shop->status === \App\Models\Shop::STATUS_ACTIVE)
-                        · Active — salesman can take orders. You can still edit or deactivate.
+                        · Active for orders. Office can edit details or deactivate if needed — no re-approval required.
                     @endif
                     @if ($shop->notes) · “{{ $shop->notes }}” @endif
                 </div>

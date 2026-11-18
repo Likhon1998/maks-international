@@ -86,6 +86,10 @@ class FieldBakiCollectTest extends TestCase
         $detail->assertSee('redirect', false);
 
         $half = round($due / 2, 2);
+        $before = app(\App\Services\CollectionSummaryService::class)->openDuesForShop($salesman, $shop->fresh());
+        $bakiBefore = (float) $before['baki'];
+        $collectableBefore = (float) $before['collectable'];
+
         $this->actingAs($salesman)
             ->post(route('field.orders.collect', $order), [
                 'amount' => $half,
@@ -103,6 +107,22 @@ class FieldBakiCollectTest extends TestCase
                 ->where('status', Payment::STATUS_PENDING)
                 ->exists()
         );
+
+        // After আদায়, shop baki / collectable must drop immediately (not wait for office verify).
+        $left = round($due - $half, 2);
+        $after = app(\App\Services\CollectionSummaryService::class)->openDuesForShop($salesman, $shop->fresh());
+        $this->assertNotNull($after);
+        $this->assertEqualsWithDelta($bakiBefore - $half, $after['baki'], 0.05);
+        $this->assertEqualsWithDelta($collectableBefore - $half, $after['collectable'], 0.05);
+        $this->assertGreaterThanOrEqual($half - 0.05, (float) $after['pending']);
+
+        $orderRow = $after['orders']->firstWhere(fn ($r) => (int) $r['order']->id === (int) $order->id);
+        $this->assertNotNull($orderRow);
+        $this->assertEqualsWithDelta($left, $orderRow['due'], 0.05);
+        $this->assertEqualsWithDelta($half, $orderRow['pending'], 0.05);
+
+        $this->actingAs($salesman)->get(route('field.dues'))->assertOk()
+            ->assertSee(DemoData::taka((float) $after['baki']), false);
     }
 
     public function test_salesman_cannot_open_dues_for_unrelated_shop(): void

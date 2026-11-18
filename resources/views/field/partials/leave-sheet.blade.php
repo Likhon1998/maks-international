@@ -9,9 +9,11 @@
         open: {{ $openLeave ? 'true' : 'false' }},
         redirect: @js($leaveTo),
         outcome: @js($oldOutcome),
-        get mistake() { return this.outcome === 'cancelled'; }
+        get mistake() { return this.outcome === 'cancelled'; },
+        get shopClosed() { return this.outcome === 'closed'; },
+        get evidenceOptional() { return this.mistake || this.shopClosed; }
     }"
-    @open-leave.window="open = true; if ($event.detail) redirect = $event.detail; $nextTick(() => { if (!this.mistake) document.getElementById('leave-notes')?.focus(); })"
+    @open-leave.window="open = true; if ($event.detail) redirect = $event.detail; $nextTick(() => { if (!this.evidenceOptional) document.getElementById('leave-notes')?.focus(); })"
 >
     <div class="f-sheet-backdrop" x-show="open" x-cloak x-transition.opacity @click="open = false"></div>
     <form class="f-sheet" x-show="open" x-cloak x-transition method="post" action="{{ route('field.visit.leave', $visit) }}" enctype="multipart/form-data" @keydown.escape.window="open = false">
@@ -19,11 +21,14 @@
         <input type="hidden" name="redirect" :value="redirect">
         <div class="f-sheet-grip"></div>
         <h3>{{ __('field.im_leaving', ['shop' => $visit->shop?->name]) }}</h3>
-        <p class="f-muted f-small" style="margin:0 0 12px" x-show="!mistake">
+        <p class="f-muted f-small" style="margin:0 0 12px" x-show="!evidenceOptional">
             {{ $needsPhoto ? __('field.leave_needs_note_photo') : __('field.leave_needs_note') }}
         </p>
         <p class="f-muted f-small" style="margin:0 0 12px" x-show="mistake" x-cloak>
             {{ __('field.leave_mistake_hint') }}
+        </p>
+        <p class="f-muted f-small" style="margin:0 0 12px" x-show="shopClosed" x-cloak>
+            {{ __('field.leave_closed_hint') }}
         </p>
 
         @if ($visit->order_id)
@@ -40,19 +45,41 @@
 
         <template x-if="!mistake">
             <div>
-                <label class="f-label" for="leave-notes">{{ __('field.talk_notes_label') }} <em class="as-req">*</em></label>
-                <textarea id="leave-notes" class="f-textarea @error('notes') is-invalid @enderror" name="notes" rows="3" maxlength="1000" required placeholder="{{ __('field.talk_notes_placeholder') }}">{{ old('notes', $visit->notes) }}</textarea>
-                @error('notes')<div class="f-error">{{ $message }}</div>@enderror
+                <template x-if="!shopClosed">
+                    <div>
+                        <label class="f-label" for="leave-notes">{{ __('field.talk_notes_label') }} <em class="as-req">*</em></label>
+                        <textarea id="leave-notes" class="f-textarea @error('notes') is-invalid @enderror" name="notes" rows="3" maxlength="1000" required placeholder="{{ __('field.talk_notes_placeholder') }}">{{ old('notes', $visit->notes) }}</textarea>
+                        @error('notes')<div class="f-error">{{ $message }}</div>@enderror
 
-                <x-live-camera-photo
-                    name="photo"
-                    :required="$needsPhoto"
-                    :title="$needsPhoto ? __('field.live_photo_required') : __('field.live_photo_optional')"
-                    :hint="$needsPhoto ? __('field.live_photo_required_hint') : __('field.live_photo_optional_hint')"
-                    class="f-cam-block"
-                />
-                @error('photo')<div class="f-error">{{ $message }}</div>@enderror
-                @error('photo_captured')<div class="f-error">{{ $message }}</div>@enderror
+                        <x-live-camera-photo
+                            name="photo"
+                            :required="$needsPhoto"
+                            :title="$needsPhoto ? __('field.live_photo_required') : __('field.live_photo_optional')"
+                            :hint="$needsPhoto ? __('field.live_photo_required_hint') : __('field.live_photo_optional_hint')"
+                            class="f-cam-block"
+                        />
+                        @error('photo')<div class="f-error">{{ $message }}</div>@enderror
+                        @error('photo_captured')<div class="f-error">{{ $message }}</div>@enderror
+                    </div>
+                </template>
+
+                <template x-if="shopClosed">
+                    <div>
+                        <label class="f-label" for="leave-notes-closed">{{ __('field.talk_notes_optional_label') }}</label>
+                        <textarea id="leave-notes-closed" class="f-textarea @error('notes') is-invalid @enderror" name="notes" rows="2" maxlength="1000" placeholder="{{ __('field.closed_notes_placeholder') }}">{{ old('notes', $visit->notes) }}</textarea>
+                        @error('notes')<div class="f-error">{{ $message }}</div>@enderror
+
+                        <x-live-camera-photo
+                            name="photo"
+                            :required="false"
+                            :title="__('field.live_photo_optional')"
+                            :hint="__('field.live_photo_optional_hint')"
+                            class="f-cam-block"
+                        />
+                        @error('photo')<div class="f-error">{{ $message }}</div>@enderror
+                        @error('photo_captured')<div class="f-error">{{ $message }}</div>@enderror
+                    </div>
+                </template>
             </div>
         </template>
 
